@@ -1,0 +1,16 @@
+domain: my.domain
+layout:
+- go.kubebuilder.io/v3
+projectName: argocd-app-source
+repo: github.com/argoproj-labs/argocd-app-source
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: my.domain
+  group: cluster
+  kind: AppSource
+  path: github.com/argoproj-labs/argocd-app-source/api/v1
+  version: v1
+version: "3"

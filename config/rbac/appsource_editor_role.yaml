@@ -1,0 +1,24 @@
+# permissions for end users to edit appsources.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: appsource-editor-role
+rules:
+- apiGroups:
+  - cluster.my.domain
+  resources:
+  - appsources
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cluster.my.domain
+  resources:
+  - appsources/status
+  verbs:
+  - get

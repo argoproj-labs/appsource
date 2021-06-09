@@ -1,0 +1,20 @@
+# permissions for end users to view appsources.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: appsource-viewer-role
+rules:
+- apiGroups:
+  - cluster.my.domain
+  resources:
+  - appsources
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - cluster.my.domain
+  resources:
+  - appsources/status
+  verbs:
+  - get

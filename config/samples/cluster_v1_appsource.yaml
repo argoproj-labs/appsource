@@ -1,0 +1,7 @@
+apiVersion: cluster.my.domain/v1
+kind: AppSource
+metadata:
+  name: appsource-sample
+spec:
+  # Add fields here
+  foo: bar
