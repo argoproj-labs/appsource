@@ -68,7 +68,7 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		panic(err.Error())
 	}
 
-	configmaps, err := clientset.CoreV1().ConfigMaps("").Get(context.TODO(), appsource_cm_name, metav1.ListOptions{})
+	configmaps, err := clientset.CoreV1().ConfigMaps("").Get(context.TODO(), appsource_cm_name, metav1.GetOptions{})
 	if err != nil {
 		panic(err.Error())
 	} //! configmaps currently every configmap across all namespaces with the name argocd-source-cm
