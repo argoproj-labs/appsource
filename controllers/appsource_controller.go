@@ -21,11 +21,11 @@ import (
 
 	clusterv1 "github.com/argoproj-labs/argocd-app-source/api/v1"
 	argoapiclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -55,25 +55,21 @@ const appsource_cm_name = "argocd-sourc-cm"
 func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	// your logic here
-	//TODO Get AppSource ConfigMap
-	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		panic(err.Error())
 	}
-	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	configmaps, err := clientset.CoreV1().ConfigMaps("").Get(context.TODO(), appsource_cm_name, metav1.GetOptions{})
+	configmap, err := clientset.CoreV1().ConfigMaps("").Get(context.TODO(), appsource_cm_name, metav1.GetOptions{})
 	if err != nil {
 		panic(err.Error())
 	} //! configmaps currently every configmap across all namespaces with the name argocd-source-cm
-	//TODO Cast AppSource ConfigMap to AppSourceConfig type
 	//TODO Gather list of namespaces in the cluster
+
 	//TODO Gather AppSource resources within each namespace
 	//TODO Compare AppSource namespace+name against AppSourceConfigMap.data.pattern
 	//TODO If namespace+name checks off, then check ArgoCD API the application
