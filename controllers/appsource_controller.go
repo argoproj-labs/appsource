@@ -18,9 +18,11 @@ package controllers
 
 import (
 	"context"
+	"errors"
+	"regexp"
 
 	clusterv1 "github.com/argoproj-labs/argocd-app-source/api/v1"
-	argoapiclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	argocd_apiclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -55,6 +57,8 @@ const appsource_cm_name = "argocd-sourc-cm"
 func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
+	// req currently contains the name and namespace of the AppSource instance being reconciled.
+
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		panic(err.Error())
@@ -63,17 +67,43 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if err != nil {
 		panic(err.Error())
 	}
+	client := clientset.CoreV1()
 
-	configmap, err := clientset.CoreV1().ConfigMaps("").Get(context.TODO(), appsource_cm_name, metav1.GetOptions{})
+	// Collect argocd-source-cm ConfigMap
+	configmap, err := client.ConfigMaps("").Get(ctx, appsource_cm_name, metav1.GetOptions{})
 	if err != nil {
 		panic(err.Error())
-	} //! configmaps currently every configmap across all namespaces with the name argocd-source-cm
-	//TODO Gather list of namespaces in the cluster
+	}
 
-	//TODO Gather AppSource resources within each namespace
-	//TODO Compare AppSource namespace+name against AppSourceConfigMap.data.pattern
-	//TODO If namespace+name checks off, then check ArgoCD API the application
-	//TODO If it does not exist, then create it.
+	// Extract name and namespace from AppSource request
+	namespace := req.Namespace
+	//TODO Compare AppSource namespace+name against AppSourceConfigMap.data.pattern (regular expression)
+	pattern := configmap.Data["project.pattern"]
+
+	var pattern_matches_namespace bool
+	pattern_matches_namespace, err = regexp.MatchString(pattern, namespace)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	if pattern_matches_namespace {
+		//? Check if ArgoCD Application referenced by req exists
+		//TODO Get the AppSource Object using req
+		appsource := &clusterv1.AppSource{}
+		_ = r.Get(ctx, req.NamespacedName, appsource)
+
+		//TODO Make an ArgoCD project client
+		client := argocd_apiclient.NewClient()
+
+		//TODO Get the ArgoCD project
+		//TODO If project does not exist then create it
+		//TODO
+		//TODO Search for req.name within existing applications
+		//TODO If err, then app does not exist therefore we should create it
+	} else {
+		//? Name does not match namespace regex pattern.
+		panic(errors.New("Namespace does not match AppSource Project Pattern."))
+	}
 
 	return ctrl.Result{}, nil
 }
