@@ -74,7 +74,6 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		panic(err.Error())
-		return nil,
 	}
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
