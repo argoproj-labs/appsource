@@ -27,8 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/types"
-	"github.com/argoproj/argo-cd/v2/pkg/clientset"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -123,29 +122,31 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if err != nil {
 			panic(errors.New("Unable to create Application client"))
 		}
-		appquery := application.ApplicationQuery{
+		app_query := application.ApplicationQuery{
 			Name:     &name,
 			Projects: []string{namespace},
 		}
-		app, err := appc.Get(ctx, &appquery)
+		app, err := appc.Get(ctx, &app_query)
 		if err != nil {
 			//Application does not exist, create it
-			appspec := types.ApplicationSpec{
+			app_spec := v1alpha1.ApplicationSpec{
 				Project: namespace,
 			}
-			appstatus := types.ApplicationStatus{}
-			appoperations := types.Operation{}
-			application := types.Application{
-				Spec:      appspec,
-				Status:    appstatus,
-				Operation: appoperations,
+			app_status := v1alpha1.ApplicationStatus{}
+			app_operations := v1alpha1.Operation{}
+			app_t := v1alpha1.Application{
+				Spec:      app_spec,
+				Status:    app_status,
+				Operation: &app_operations,
 			}
-			appcreate := application.ApplicationCreateRequest{
-				Application: application,
-				Upsert:      true,
-				Validate:    true,
+			var set_upsert_true bool = true
+			var set_validate_true bool = true
+			app_create_req := application.ApplicationCreateRequest{
+				Application: app_t,
+				Upsert:      &set_upsert_true,
+				Validate:    &set_validate_true,
 			}
-			appc.Create(ctx, appcreate)
+			appc.Create(ctx, &app_create_req)
 			//? Am creating this application correctly? What defaults should I use for the app configuration?
 		}
 	} else {
