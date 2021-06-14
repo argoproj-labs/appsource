@@ -22,7 +22,13 @@ import (
 	"regexp"
 
 	clusterv1 "github.com/argoproj-labs/argocd-app-source/api/v1"
-	argocd_apiclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+
+	//?Are these imports correct? They seem to be throwing an error.
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/types"
+	"github.com/argoproj/argo-cd/v2/pkg/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -37,6 +43,13 @@ import (
 type AppSourceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+
+	//? I feel like I'm not using the reconciler to its fullest potential.
+	//? The reconcile logic will always need the ArgoCD client as well as
+	//? the Kubernetes client, maybe I can add them to the reconciler type?
+	//? But then how will the ArgoCD client by dynamically initialized based
+	//? on the address provided in the AppSource ConfigMap?
+	argocd_client apiclient.Client
 }
 
 const appsource_cm_name = "argocd-sourc-cm"
@@ -76,6 +89,7 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// Extract name and namespace from AppSource request
+	name := req.Name
 	namespace := req.Namespace
 	//TODO Compare AppSource namespace+name against AppSourceConfigMap.data.pattern (regular expression)
 	pattern := configmap.Data["project.pattern"]
@@ -92,14 +106,48 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		appsource := &clusterv1.AppSource{}
 		_ = r.Get(ctx, req.NamespacedName, appsource)
 
-		//TODO Make an ArgoCD project client
-		client := argocd_apiclient.NewClient()
-
 		//TODO Get the ArgoCD project
-		//TODO If project does not exist then create it
-		//TODO
-		//TODO Search for req.name within existing applications
-		//TODO If err, then app does not exist therefore we should create it
+		closer, projectc, err := r.argocd_client.NewProjectClient()
+		if err != nil {
+			panic(errors.New("Unable to establish Project client."))
+		}
+		projquery := project.ProjectQuery{Name: namespace}
+		proj, err := projectc.Get(ctx, &projquery)
+		if err != nil {
+			//Project should exist, is being created by admin team
+			panic(errors.New("Project not found."))
+		}
+		closer.Close() //? Am I using this close function correctly?
+		//TODO Search project for application
+		closer, appc, err := r.argocd_client.NewApplicationClient()
+		if err != nil {
+			panic(errors.New("Unable to create Application client"))
+		}
+		appquery := application.ApplicationQuery{
+			Name:     &name,
+			Projects: []string{namespace},
+		}
+		app, err := appc.Get(ctx, &appquery)
+		if err != nil {
+			//Application does not exist, create it
+			appspec := types.ApplicationSpec{
+				Project: namespace,
+			}
+			appstatus := types.ApplicationStatus{}
+			appoperations := types.Operation{}
+			application := types.Application{
+				Spec:      appspec,
+				Status:    appstatus,
+				Operation: appoperations,
+			}
+			appcreate := application.ApplicationCreateRequest{
+				Application: application,
+				Upsert:      true,
+				Validate:    true,
+			}
+			appc.Create(ctx, appcreate)
+			//? Am creating this application correctly? What defaults should I use for the app configuration?
+		}
 	} else {
 		//? Name does not match namespace regex pattern.
 		panic(errors.New("Namespace does not match AppSource Project Pattern."))
