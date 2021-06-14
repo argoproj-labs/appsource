@@ -74,6 +74,7 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		panic(err.Error())
+		return nil,
 	}
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
@@ -107,6 +108,7 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 		//TODO Get the ArgoCD project
 		closer, projectc, err := r.argocd_client.NewProjectClient()
+		defer closer.Close()
 		if err != nil {
 			panic(errors.New("Unable to establish Project client."))
 		}
@@ -116,9 +118,9 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			//Project should exist, is being created by admin team
 			panic(errors.New("Project not found."))
 		}
-		closer.Close() //? Am I using this close function correctly?
 		//TODO Search project for application
 		closer, appc, err := r.argocd_client.NewApplicationClient()
+		defer closer.Close()
 		if err != nil {
 			panic(errors.New("Unable to create Application client"))
 		}
@@ -150,7 +152,7 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			//? Am creating this application correctly? What defaults should I use for the app configuration?
 		}
 	} else {
-		//? Name does not match namespace regex pattern.
+		//Name does not match namespace regex pattern.
 		panic(errors.New("Namespace does not match AppSource Project Pattern."))
 	}
 
