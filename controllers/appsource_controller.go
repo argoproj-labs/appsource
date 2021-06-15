@@ -24,14 +24,10 @@ import (
 	clusterv1 "github.com/argoproj-labs/argocd-app-source/api/v1"
 
 	//?Are these imports correct? They seem to be throwing an error.
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,10 +44,14 @@ type AppSourceReconciler struct {
 	//? the Kubernetes client, maybe I can add them to the reconciler type?
 	//? But then how will the ArgoCD client by dynamically initialized based
 	//? on the address provided in the AppSource ConfigMap?
-	argocd_client apiclient.Client
+	ArgoAppClientset appclientset.Interface
+	KubeClientset    kubernetes.Interface
 }
 
-const appsource_cm_name = "argocd-sourc-cm"
+const (
+	appsource_cm_name = "argocd-sourc-cm"
+	argocd_namespace  = "argocd"
+)
 
 //+kubebuilder:rbac:groups=cluster.my.domain,resources=appsources,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=cluster.my.domain,resources=appsources/status,verbs=get;update;patch
@@ -69,86 +69,19 @@ const appsource_cm_name = "argocd-sourc-cm"
 func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	// req currently contains the name and namespace of the AppSource instance being reconciled.
-
-	config, err := rest.InClusterConfig()
+	pattern_matches_namespace, err := r.ValidateNamespacePattern(ctx, req)
 	if err != nil {
-		panic(err.Error())
-	}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		panic(err.Error())
-	}
-	client := clientset.CoreV1()
-
-	// Collect argocd-source-cm ConfigMap
-	configmap, err := client.ConfigMaps("").Get(ctx, appsource_cm_name, metav1.GetOptions{})
-	if err != nil {
-		panic(err.Error())
-	}
-
-	// Extract name and namespace from AppSource request
-	name := req.Name
-	namespace := req.Namespace
-	//TODO Compare AppSource namespace+name against AppSourceConfigMap.data.pattern (regular expression)
-	pattern := configmap.Data["project.pattern"]
-
-	var pattern_matches_namespace bool
-	pattern_matches_namespace, err = regexp.MatchString(pattern, namespace)
-	if err != nil {
-		panic(err.Error())
+		panic(err)
 	}
 
 	if pattern_matches_namespace {
-		//? Check if ArgoCD Application referenced by req exists
-		//TODO Get the AppSource Object using req
-		appsource := &clusterv1.AppSource{}
-		_ = r.Get(ctx, req.NamespacedName, appsource)
-
-		//TODO Get the ArgoCD project
-		closer, projectc, err := r.argocd_client.NewProjectClient()
-		defer closer.Close()
+		err = r.ValidateProject(ctx, req)
 		if err != nil {
-			panic(errors.New("Unable to establish Project client."))
+			panic(err)
 		}
-		projquery := project.ProjectQuery{Name: namespace}
-		proj, err := projectc.Get(ctx, &projquery)
+		err = r.ValidateApplication(ctx, req)
 		if err != nil {
-			//Project should exist, is being created by admin team
-			panic(errors.New("Project not found."))
-		}
-		//TODO Search project for application
-		closer, appc, err := r.argocd_client.NewApplicationClient()
-		defer closer.Close()
-		if err != nil {
-			panic(errors.New("Unable to create Application client"))
-		}
-		app_query := application.ApplicationQuery{
-			Name:     &name,
-			Projects: []string{namespace},
-		}
-		app, err := appc.Get(ctx, &app_query)
-		if err != nil {
-			//Application does not exist, create it
-			app_spec := v1alpha1.ApplicationSpec{
-				Project: namespace,
-			}
-			app_status := v1alpha1.ApplicationStatus{}
-			app_operations := v1alpha1.Operation{}
-			app_t := v1alpha1.Application{
-				Spec:      app_spec,
-				Status:    app_status,
-				Operation: &app_operations,
-			}
-			var set_upsert_true bool = true
-			var set_validate_true bool = true
-			app_create_req := application.ApplicationCreateRequest{
-				Application: app_t,
-				Upsert:      &set_upsert_true,
-				Validate:    &set_validate_true,
-			}
-			appc.Create(ctx, &app_create_req)
-			//? Am creating this application correctly? What defaults should I use for the app configuration?
+			panic(err)
 		}
 	} else {
 		//Name does not match namespace regex pattern.
@@ -156,6 +89,52 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *AppSourceReconciler) ValidateApplication(ctx context.Context, req ctrl.Request) (err error) {
+	//Search for application
+	appclient := r.ArgoAppClientset.ArgoprojV1alpha1().Applications(req.Namespace)
+	_, err = appclient.Get(ctx, req.Name, metav1.GetOptions{})
+	if err != nil {
+		//Application not found, create it
+		appsource := &clusterv1.AppSource{}
+		_ = r.Get(ctx, req.NamespacedName, appsource)
+		_, err = appclient.Create(ctx,
+			appsource.ApplicationFromSource(req), metav1.CreateOptions{})
+	} //? Why is the linter compaling that I can't use *v1alpha1.Application when that is
+	//? the argument type that it takes in?
+	return
+}
+
+func (r *AppSourceReconciler) ValidateProject(ctx context.Context, req ctrl.Request) (err error) {
+	appproject_client := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(argocd_namespace)
+	_, err = appproject_client.Get(ctx, req.Namespace, metav1.GetOptions{})
+	//TODO Implement project creation logic, see commented out section below.
+	// if err != nil {
+	// 	//Project was not found, therefore we should create it
+	// 	appproject_req := v1alpha1.AppProject{}
+	// 	_, err = r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(argocd_namespace).Create(
+	// 		ctx,
+	// 		&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: req.Namespace}},
+	// 		metav1.CreateOptions{})
+	// }
+	return
+}
+
+// Returns whether requested AppSource object namespace matches allowed project pattern
+func (r *AppSourceReconciler) ValidateNamespacePattern(ctx context.Context, req ctrl.Request) (pattern_matches_namespace bool, err error) {
+	// Collect argocd-source-cm ConfigMap
+	configmap, err := r.KubeClientset.CoreV1().ConfigMaps("").Get(ctx, appsource_cm_name, metav1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+
+	// Extract name and namespace from AppSource request
+	namespace := req.Namespace
+	pattern := configmap.Data["project.pattern"]
+
+	pattern_matches_namespace, err = regexp.MatchString(pattern, namespace)
+	return
 }
 
 // SetupWithManager sets up the controller with the Manager.

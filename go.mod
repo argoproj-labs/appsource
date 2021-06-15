@@ -3,6 +3,7 @@ module github.com/argoproj-labs/argocd-app-source
 go 1.16
 
 require (
+	github.com/argoproj/argo-cd v1.8.7
 	github.com/argoproj/argo-cd/v2 v2.0.3
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.13.0
