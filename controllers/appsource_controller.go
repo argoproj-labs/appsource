@@ -24,10 +24,10 @@ import (
 	clusterv1 "github.com/argoproj-labs/argocd-app-source/api/v1"
 
 	//?Are these imports correct? They seem to be throwing an error.
-	appclientset "github.com/argoproj/argo-cd/pkg/client/clientset/versioned"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	argocdClientSet "github.com/argoproj/argo-cd/pkg/apiclient"
+	applicationTypes "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	projectTypes "github.com/argoproj/argo-cd/pkg/apiclient/project"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,16 +39,12 @@ type AppSourceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	ArgoAppClientset appclientset.Interface
-	KubeClientset    kubernetes.Interface
-}
+	ArgoAppClientset argocdClientSet.Client
 
-const (
-	//AppSource configmap name
-	appSourceCM = "argocd-source-cm"
-	//ArgoCD Namespace
-	argocdNS = "argocd"
-)
+	PatternRegexCompiler           *regexp.Regexp
+	ProjectGroupRegexCompiler      *regexp.Regexp
+	FirstCaptureGroupRegexCompiler *regexp.Regexp
+}
 
 //+kubebuilder:rbac:groups=cluster.my.domain,resources=appsources,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=cluster.my.domain,resources=appsources/status,verbs=get;update;patch
@@ -90,22 +86,44 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 func (r *AppSourceReconciler) validateApplication(ctx context.Context, req ctrl.Request) (err error) {
 	//Search for application
-	appClient := r.ArgoAppClientset.ArgoprojV1alpha1().Applications(req.Namespace)
-	_, err = appClient.Get(ctx, req.Name, metav1.GetOptions{})
+	closer, appClient, err := r.ArgoAppClientset.NewApplicationClient()
+	if err != nil {
+		return err
+	}
+	defer closer.Close()
+	_, err = appClient.Get(ctx, &applicationTypes.ApplicationQuery{Name: &req.Name})
 	if err != nil {
 		//Application not found, create it
 		appSource := &clusterv1.AppSource{}
 		_ = r.Get(ctx, req.NamespacedName, appSource)
 		_, err = appClient.Create(ctx,
-			appSource.ApplicationFromSource(req), metav1.CreateOptions{})
-	} //? Why is the linter compaling that I can't use *v1alpha1.Application when that is
-	//? the argument type that it takes in?
+			&applicationTypes.ApplicationCreateRequest{Application: appSource.ApplicationFromSource(req)})
+	}
 	return
 }
 
+func (r *AppSourceReconciler) GetProjectName(namespace string) (result string, err error) {
+	match := r.ProjectGroupRegexCompiler.Find([]byte(namespace))
+	if match == nil {
+		match = r.FirstCaptureGroupRegexCompiler.Find([]byte(namespace))
+	}
+	if match == nil {
+		return "", errors.New("project name could not be found from appsource namespace")
+	}
+	return string(match), nil
+}
+
 func (r *AppSourceReconciler) validateProject(ctx context.Context, req ctrl.Request) (err error) {
-	appProjectClient := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(argocdNS)
-	_, err = appProjectClient.Get(ctx, req.Namespace, metav1.GetOptions{})
+	closer, appProjectClient, err := r.ArgoAppClientset.NewProjectClient()
+	if err != nil {
+		return err
+	}
+	defer closer.Close()
+	projectName, err := r.GetProjectName(req.Namespace)
+	if err != nil {
+		return err
+	}
+	_, err = appProjectClient.Get(ctx, &projectTypes.ProjectQuery{Name: projectName})
 	//TODO Implement project creation logic, see commented out section below.
 	// if err != nil {
 	// 	//Project was not found, therefore we should create it
@@ -120,17 +138,9 @@ func (r *AppSourceReconciler) validateProject(ctx context.Context, req ctrl.Requ
 
 // Returns whether requested AppSource object namespace matches allowed project pattern
 func (r *AppSourceReconciler) validateNamespacePattern(ctx context.Context, req ctrl.Request) (patternMatchesNamespace bool, err error) {
-	// Collect argocd-source-cm ConfigMap
-	configmap, err := r.KubeClientset.CoreV1().ConfigMaps("").Get(ctx, appSourceCM, metav1.GetOptions{})
-	if err != nil {
-		return false, err
-	}
+	// // Collect argocd-source-cm ConfigMap
 
-	// Extract name and namespace from AppSource request
-	namespace := req.Namespace
-	pattern := configmap.Data["project.pattern"]
-
-	patternMatchesNamespace, err = regexp.MatchString(pattern, namespace)
+	patternMatchesNamespace = r.PatternRegexCompiler.Match([]byte(req.Namespace))
 	return
 }
 

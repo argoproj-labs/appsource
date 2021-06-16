@@ -53,8 +53,8 @@ type AppSource struct {
 	Status AppSourceStatus            `json:"status,omitempty"`
 }
 
-func (a *AppSource) ApplicationFromSource(req ctrl.Request) *v1alpha1.Application {
-	return &v1alpha1.Application{
+func (a *AppSource) ApplicationFromSource(req ctrl.Request) v1alpha1.Application {
+	return v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{Name: req.Name},
 		Spec: v1alpha1.ApplicationSpec{
 			Source: v1alpha1.ApplicationSource{

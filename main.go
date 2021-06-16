@@ -17,8 +17,10 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
+	"regexp"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -26,14 +28,28 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	argocdClientSet "github.com/argoproj/argo-cd/pkg/apiclient"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	clusterv1 "github.com/argoproj-labs/argocd-app-source/api/v1"
 	"github.com/argoproj-labs/argocd-app-source/controllers"
 	//+kubebuilder:scaffold:imports
+)
+
+const (
+	//AppSource configmap name
+	appSourceCM = "argocd-source-cm"
+	//Project Capture Grouping Regex Search
+	projectCaptureGroupRegex = "(?P<project>.*)"
+	//First Capturing Group Regex Search
+	firstCapturingGroup = "(.*)"
 )
 
 var (
@@ -77,10 +93,32 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
-
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		setupLog.Error(err, "failed to create kubernetes in-cluster config")
+		os.Exit(1)
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		setupLog.Error(err, "failed to create kubernetes clientset")
+		os.Exit(1)
+	}
+	appSourceConfigmap, err := clientset.CoreV1().ConfigMaps("").Get(context.TODO(), appSourceCM, metav1.GetOptions{})
+	if err != nil {
+		setupLog.Error(err, "failed to get appSource configmap")
+		os.Exit(1)
+	}
 	if err = (&controllers.AppSourceReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		ArgoAppClientset: argocdClientSet.NewClientOrDie(
+			&argocdClientSet.ClientOptions{
+				ServerAddr: appSourceConfigmap.Data["argocd.address"],
+				AuthToken:  appSourceConfigmap.Data["argocd.token"],
+			}),
+		PatternRegexCompiler:           regexp.MustCompile(appSourceConfigmap.Data["project.pattern"]),
+		ProjectGroupRegexCompiler:      regexp.MustCompile(projectCaptureGroupRegex),
+		FirstCaptureGroupRegexCompiler: regexp.MustCompile(firstCapturingGroup),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AppSource")
 		os.Exit(1)
