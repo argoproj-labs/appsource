@@ -44,8 +44,10 @@ type AppSourceReconciler struct {
 }
 
 const (
-	appsource_cm_name = "argocd-sourc-cm"
-	argocd_namespace  = "argocd"
+	//AppSource configmap name
+	appSourceCM = "argocd-source-cm"
+	//ArgoCD Namespace
+	argocdNS = "argocd"
 )
 
 //+kubebuilder:rbac:groups=cluster.my.domain,resources=appsources,verbs=get;list;watch;create;update;patch;delete
@@ -64,12 +66,12 @@ const (
 func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	pattern_matches_namespace, err := r.validateNamespacePattern(ctx, req)
+	patternMatchesNamespace, err := r.validateNamespacePattern(ctx, req)
 	if err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	if pattern_matches_namespace {
+	if patternMatchesNamespace {
 		err = r.validateProject(ctx, req)
 		if err != nil {
 			return ctrl.Result{Requeue: true}, err
@@ -88,27 +90,27 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 func (r *AppSourceReconciler) validateApplication(ctx context.Context, req ctrl.Request) (err error) {
 	//Search for application
-	appclient := r.ArgoAppClientset.ArgoprojV1alpha1().Applications(req.Namespace)
-	_, err = appclient.Get(ctx, req.Name, metav1.GetOptions{})
+	appClient := r.ArgoAppClientset.ArgoprojV1alpha1().Applications(req.Namespace)
+	_, err = appClient.Get(ctx, req.Name, metav1.GetOptions{})
 	if err != nil {
 		//Application not found, create it
-		appsource := &clusterv1.AppSource{}
-		_ = r.Get(ctx, req.NamespacedName, appsource)
-		_, err = appclient.Create(ctx,
-			appsource.ApplicationFromSource(req), metav1.CreateOptions{})
+		appSource := &clusterv1.AppSource{}
+		_ = r.Get(ctx, req.NamespacedName, appSource)
+		_, err = appClient.Create(ctx,
+			appSource.ApplicationFromSource(req), metav1.CreateOptions{})
 	} //? Why is the linter compaling that I can't use *v1alpha1.Application when that is
 	//? the argument type that it takes in?
 	return
 }
 
 func (r *AppSourceReconciler) validateProject(ctx context.Context, req ctrl.Request) (err error) {
-	appproject_client := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(argocd_namespace)
-	_, err = appproject_client.Get(ctx, req.Namespace, metav1.GetOptions{})
+	appProjectClient := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(argocdNS)
+	_, err = appProjectClient.Get(ctx, req.Namespace, metav1.GetOptions{})
 	//TODO Implement project creation logic, see commented out section below.
 	// if err != nil {
 	// 	//Project was not found, therefore we should create it
 	// 	appproject_req := v1alpha1.AppProject{}
-	// 	_, err = r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(argocd_namespace).Create(
+	// 	_, err = r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(argocdNS).Create(
 	// 		ctx,
 	// 		&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: req.Namespace}},
 	// 		metav1.CreateOptions{})
@@ -117,9 +119,9 @@ func (r *AppSourceReconciler) validateProject(ctx context.Context, req ctrl.Requ
 }
 
 // Returns whether requested AppSource object namespace matches allowed project pattern
-func (r *AppSourceReconciler) validateNamespacePattern(ctx context.Context, req ctrl.Request) (pattern_matches_namespace bool, err error) {
+func (r *AppSourceReconciler) validateNamespacePattern(ctx context.Context, req ctrl.Request) (patternMatchesNamespace bool, err error) {
 	// Collect argocd-source-cm ConfigMap
-	configmap, err := r.KubeClientset.CoreV1().ConfigMaps("").Get(ctx, appsource_cm_name, metav1.GetOptions{})
+	configmap, err := r.KubeClientset.CoreV1().ConfigMaps("").Get(ctx, appSourceCM, metav1.GetOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -128,7 +130,7 @@ func (r *AppSourceReconciler) validateNamespacePattern(ctx context.Context, req 
 	namespace := req.Namespace
 	pattern := configmap.Data["project.pattern"]
 
-	pattern_matches_namespace, err = regexp.MatchString(pattern, namespace)
+	patternMatchesNamespace, err = regexp.MatchString(pattern, namespace)
 	return
 }
 
