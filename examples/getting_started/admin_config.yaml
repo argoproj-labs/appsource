@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-source-cm
+data:
+  argocd.address: argo-cd-demo.argoproj.io:443 # Argo CD server hostname and port
+  argocd.token: $token # Argo CD access token
+  project.pattern: '(.*)-us-(west|east)-2' # pattern that allows to decide in which project apps 
+                                    # should be created based on AppSource namespace.
+                                    # E.g. AppSources in `my-project-us-west-2` and `my-project-us-east-2` should
+                                    # create apps in to 'my-project'
