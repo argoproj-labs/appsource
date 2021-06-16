@@ -66,21 +66,21 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	pattern_matches_namespace, err := r.validateNamespacePattern(ctx, req)
 	if err != nil {
-		panic(err)
+		return ctrl.Result{Requeue: true}, err
 	}
 
 	if pattern_matches_namespace {
 		err = r.validateProject(ctx, req)
 		if err != nil {
-			panic(err)
+			return ctrl.Result{Requeue: true}, err
 		}
 		err = r.validateApplication(ctx, req)
 		if err != nil {
-			panic(err)
+			return ctrl.Result{Requeue: true}, err
 		}
 	} else {
 		//Name does not match namespace regex pattern.
-		panic(errors.New("Namespace does not match AppSource Project Pattern."))
+		return ctrl.Result{Requeue: true}, errors.New("namespace does not match AppSource config project.pattern")
 	}
 
 	return ctrl.Result{}, nil

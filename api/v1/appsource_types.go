@@ -61,6 +61,7 @@ func (a *AppSource) ApplicationFromSource(req ctrl.Request) *v1alpha1.Applicatio
 				RepoURL: a.Spec.RepoURL,
 				Path:    a.Spec.Path,
 			},
+			//TODO Change project name to project capturing group or first capturing group
 			Project: req.Namespace,
 		},
 	}
