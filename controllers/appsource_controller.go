@@ -39,11 +39,6 @@ type AppSourceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	//? I feel like I'm not using the reconciler to its fullest potential.
-	//? The reconcile logic will always need the ArgoCD client as well as
-	//? the Kubernetes client, maybe I can add them to the reconciler type?
-	//? But then how will the ArgoCD client by dynamically initialized based
-	//? on the address provided in the AppSource ConfigMap?
 	ArgoAppClientset appclientset.Interface
 	KubeClientset    kubernetes.Interface
 }
@@ -69,17 +64,17 @@ const (
 func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	pattern_matches_namespace, err := r.ValidateNamespacePattern(ctx, req)
+	pattern_matches_namespace, err := r.validateNamespacePattern(ctx, req)
 	if err != nil {
 		panic(err)
 	}
 
 	if pattern_matches_namespace {
-		err = r.ValidateProject(ctx, req)
+		err = r.validateProject(ctx, req)
 		if err != nil {
 			panic(err)
 		}
-		err = r.ValidateApplication(ctx, req)
+		err = r.validateApplication(ctx, req)
 		if err != nil {
 			panic(err)
 		}
@@ -91,7 +86,7 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	return ctrl.Result{}, nil
 }
 
-func (r *AppSourceReconciler) ValidateApplication(ctx context.Context, req ctrl.Request) (err error) {
+func (r *AppSourceReconciler) validateApplication(ctx context.Context, req ctrl.Request) (err error) {
 	//Search for application
 	appclient := r.ArgoAppClientset.ArgoprojV1alpha1().Applications(req.Namespace)
 	_, err = appclient.Get(ctx, req.Name, metav1.GetOptions{})
@@ -106,7 +101,7 @@ func (r *AppSourceReconciler) ValidateApplication(ctx context.Context, req ctrl.
 	return
 }
 
-func (r *AppSourceReconciler) ValidateProject(ctx context.Context, req ctrl.Request) (err error) {
+func (r *AppSourceReconciler) validateProject(ctx context.Context, req ctrl.Request) (err error) {
 	appproject_client := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(argocd_namespace)
 	_, err = appproject_client.Get(ctx, req.Namespace, metav1.GetOptions{})
 	//TODO Implement project creation logic, see commented out section below.
@@ -122,7 +117,7 @@ func (r *AppSourceReconciler) ValidateProject(ctx context.Context, req ctrl.Requ
 }
 
 // Returns whether requested AppSource object namespace matches allowed project pattern
-func (r *AppSourceReconciler) ValidateNamespacePattern(ctx context.Context, req ctrl.Request) (pattern_matches_namespace bool, err error) {
+func (r *AppSourceReconciler) validateNamespacePattern(ctx context.Context, req ctrl.Request) (pattern_matches_namespace bool, err error) {
 	// Collect argocd-source-cm ConfigMap
 	configmap, err := r.KubeClientset.CoreV1().ConfigMaps("").Get(ctx, appsource_cm_name, metav1.GetOptions{})
 	if err != nil {
