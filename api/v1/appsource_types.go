@@ -49,8 +49,8 @@ type AppSource struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   AppSourceSpec   `json:"spec,omitempty"`
-	Status AppSourceStatus `json:"status,omitempty"`
+	Spec   v1alpha1.ApplicationSource `json:"spec,omitempty"`
+	Status AppSourceStatus            `json:"status,omitempty"`
 }
 
 func (a *AppSource) ApplicationFromSource(req ctrl.Request) *v1alpha1.Application {
