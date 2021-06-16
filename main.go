@@ -93,6 +93,8 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+
+	//AppSourceReconciler specfic attribute set-up
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		setupLog.Error(err, "failed to create kubernetes in-cluster config")
@@ -108,9 +110,13 @@ func main() {
 		setupLog.Error(err, "failed to get appSource configmap")
 		os.Exit(1)
 	}
+
+	//AppSourceReconciler Initialization
 	if err = (&controllers.AppSourceReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+
+		//AppSource Reconciler specfic Attributes
 		ArgoAppClientset: argocdClientSet.NewClientOrDie(
 			&argocdClientSet.ClientOptions{
 				ServerAddr: appSourceConfigmap.Data["argocd.address"],

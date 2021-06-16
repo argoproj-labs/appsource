@@ -19,7 +19,6 @@ package v1
 import (
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -51,20 +50,6 @@ type AppSource struct {
 
 	Spec   v1alpha1.ApplicationSource `json:"spec,omitempty"`
 	Status AppSourceStatus            `json:"status,omitempty"`
-}
-
-func (a *AppSource) ApplicationFromSource(req ctrl.Request) v1alpha1.Application {
-	return v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: req.Name},
-		Spec: v1alpha1.ApplicationSpec{
-			Source: v1alpha1.ApplicationSource{
-				RepoURL: a.Spec.RepoURL,
-				Path:    a.Spec.Path,
-			},
-			//TODO Change project name to project capturing group or first capturing group
-			Project: req.Namespace,
-		},
-	}
 }
 
 //+kubebuilder:object:root=true
