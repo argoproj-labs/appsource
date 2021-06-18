@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"flag"
+	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"regexp"
 
@@ -30,7 +31,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -95,7 +95,12 @@ func main() {
 	}
 
 	//AppSourceReconciler specfic attribute set-up
-	config, err := rest.InClusterConfig()
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
+	overrides := clientcmd.ConfigOverrides{}
+	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
+	namespace, _, err := clientConfig.Namespace()
+	config, err := clientConfig.ClientConfig()
 	if err != nil {
 		setupLog.Error(err, "failed to create kubernetes in-cluster config")
 		os.Exit(1)
@@ -105,7 +110,7 @@ func main() {
 		setupLog.Error(err, "failed to create kubernetes clientset")
 		os.Exit(1)
 	}
-	appSourceConfigmap, err := clientset.CoreV1().ConfigMaps("").Get(context.TODO(), appSourceCM, metav1.GetOptions{})
+	appSourceConfigmap, err := clientset.CoreV1().ConfigMaps(namespace).Get(context.TODO(), appSourceCM, metav1.GetOptions{})
 	if err != nil {
 		setupLog.Error(err, "failed to get appSource configmap")
 		os.Exit(1)

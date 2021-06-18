@@ -1,7 +1,9 @@
-apiVersion: github.com/argoproj-labs/argocd-app-source/api/v1
+apiVersion: argoproj.io/v1alpha1
 kind: AppSource
 metadata:
-  name: guestbook
+  name: guestbook # Application name
+  namespace: qa-payments-us-west-2 #Includes project name
 spec:
   path: kustomize-guestbook
   repoURL: https://github.com/argoproj/argocd-example-apps
+  

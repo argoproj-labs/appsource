@@ -2,6 +2,8 @@ apiVersion: cluster.my.domain/v1
 kind: AppSource
 metadata:
   name: appsource-sample
+  namespace: my-project-us-west-2
 spec:
   # Add fields here
-  foo: bar
+  path: kustomize-guestbook
+  repoURL: https://github.com/argoproj/argocd-example-apps

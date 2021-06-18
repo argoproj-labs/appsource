@@ -57,7 +57,7 @@ type AppSourceReconciler struct {
 //+kubebuilder:rbac:groups=cluster.my.domain,resources=appsources/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=cluster.my.domain,resources=appsources/finalizers,verbs=update
 
-//v1.0: Reconciler is only called upon creation of an AppSource object
+// Reconcile v1.0: Reconciler is only called upon creation of an AppSource object
 //If the AppSource object's namespace matches the project pattern defined by admin
 //then the reconciler will cross reference it's existence with the ArgoCD API and
 //potentially create an Application through ArgoCD using the repoURL and path described
