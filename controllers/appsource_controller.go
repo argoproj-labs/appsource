@@ -200,21 +200,22 @@ func (r *AppSourceReconciler) validateProject(ctx context.Context, req ctrl.Requ
 	//TODO v1.1 Implement project creation logic, see commented out section below.
 	//TODO If getting the project failed, then create it with no Destination/Source repos
 	//TODO at the moment.
-	//if err != nil {
-	//	//Project was not found, therefore we should create it
-	//	appproject_req := v1alpha1.AppProject{
-	//		ObjectMeta: metav1.ObjectMeta{
-	//			Name: projectName,
-	//			Namespace: "argocd",
-	//		},
-	//
-	//	}
-	//	_, err = r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(argocdNS).Create(
-	//		ctx,
-	//		&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: req.Namespace}},
-	//		metav1.CreateOptions{})
-	//}
-	return
+	if err != nil {
+		//Project was not found, therefore we should create it
+		appProject := v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: projectName,
+				//Namespace: "argocd",
+			},
+
+		}
+		_, err = r.ArgoProjectClient.Create(ctx, &projectTypes.ProjectCreateRequest{
+			Project: &appProject,
+			Upsert: false,
+		})
+		return err
+	}
+	return err
 }
 
 // SetupWithManager sets up the controller with the Manager.

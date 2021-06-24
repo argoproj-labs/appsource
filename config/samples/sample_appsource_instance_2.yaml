@@ -1,9 +1,9 @@
 apiVersion: cluster.my.domain/v1
 kind: AppSource
 metadata:
-  name: appsource-sample
-  namespace: my-project-us-west-2
+  name: appsource-sample2
+  namespace: my-project-us-east-2
 spec:
   # Add fields here
-  path: kustomize-guestbook
+  path: helm-guestbook
   repoURL: https://github.com/argoproj/argocd-example-apps
