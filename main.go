@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"flag"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"regexp"
@@ -46,12 +47,11 @@ import (
 const (
 	//AppSource configmap name
 	appSourceCM = "argocd-source-cm"
-	//Project Capture Grouping Regex Search
-	projectCaptureGroupRegex = "(?P<project>.*)"
-	//First Capturing Group Regex Search
-	firstCapturingGroup = "(.*)"
+	//In-cluster server address
+	clusterServerName = "https://kubernetes.default.svc"
+	//ArgoCD namespace
+	argocdNamespace = "argocd"
 )
-
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
@@ -62,6 +62,32 @@ func init() {
 
 	utilruntime.Must(clusterv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
+}
+
+//GetAppSourceConfigmapOrDie returns the AppSource ConfigMap defined by admins or crashes with error
+func GetAppSourceConfigmapOrDie() ( appSourceConfigmap *v1.ConfigMap) {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
+	overrides := clientcmd.ConfigOverrides{}
+	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
+	namespace, _, err := clientConfig.Namespace()
+	config, err := clientConfig.ClientConfig()
+	if err != nil {
+		setupLog.Error(err, "failed to create kubernetes in-cluster config")
+		os.Exit(1)
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		setupLog.Error(err, "failed to create kubernetes clientset")
+		os.Exit(1)
+	}
+	//Get AppSource ConfigMap
+	appSourceConfigmap, err = clientset.CoreV1().ConfigMaps(namespace).Get(context.TODO(), appSourceCM, metav1.GetOptions{})
+	if err != nil {
+		setupLog.Error(err, "failed to get appSource configmap")
+		os.Exit(1)
+	}
+	return
 }
 
 func main() {
@@ -94,42 +120,31 @@ func main() {
 		os.Exit(1)
 	}
 
-	//AppSourceReconciler specfic attribute set-up
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
-	overrides := clientcmd.ConfigOverrides{}
-	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
-	namespace, _, err := clientConfig.Namespace()
-	config, err := clientConfig.ClientConfig()
-	if err != nil {
-		setupLog.Error(err, "failed to create kubernetes in-cluster config")
-		os.Exit(1)
-	}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		setupLog.Error(err, "failed to create kubernetes clientset")
-		os.Exit(1)
-	}
-	appSourceConfigmap, err := clientset.CoreV1().ConfigMaps(namespace).Get(context.TODO(), appSourceCM, metav1.GetOptions{})
-	if err != nil {
-		setupLog.Error(err, "failed to get appSource configmap")
-		os.Exit(1)
-	}
+	//AppSourceReconciler attribute initialization
+	appSourceConfigmap := GetAppSourceConfigmapOrDie()
+	argocdClient := argocdClientSet.NewClientOrDie(
+		&argocdClientSet.ClientOptions{
+			ServerAddr: appSourceConfigmap.Data["argocd.address"],
+			AuthToken:  appSourceConfigmap.Data["argocd.token"],
+			//TODO Add cli flags to determine insecure connection
+			Insecure:   true,
+		})
+	closer, argocdApplicationClient := argocdClient.NewApplicationClientOrDie()
+	defer closer.Close()
+	closer, argocdProjectClient := argocdClient.NewProjectClientOrDie()
+	defer closer.Close()
 
 	//AppSourceReconciler Initialization
 	if err = (&controllers.AppSourceReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 
-		//AppSource Reconciler specfic Attributes
-		ArgoAppClientset: argocdClientSet.NewClientOrDie(
-			&argocdClientSet.ClientOptions{
-				ServerAddr: appSourceConfigmap.Data["argocd.address"],
-				AuthToken:  appSourceConfigmap.Data["argocd.token"],
-			}),
+		//AppSourceReconciler specific Attributes
+		ArgoApplicationClient: argocdApplicationClient,
+		ArgoProjectClient: argocdProjectClient,
 		PatternRegexCompiler:           regexp.MustCompile(appSourceConfigmap.Data["project.pattern"]),
-		ProjectGroupRegexCompiler:      regexp.MustCompile(projectCaptureGroupRegex),
-		FirstCaptureGroupRegexCompiler: regexp.MustCompile(firstCapturingGroup),
+		ClusterHost:                    clusterServerName,
+		ArgocdNS:                       argocdNamespace,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AppSource")
 		os.Exit(1)

@@ -84,6 +84,40 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
+##@ Proof of Concept
+
+KUBECTL = /usr/local/bin/kubectl
+ARGOCD = /usr/local/bin/argocd
+MINIKUBE = /usr/local/bin/minikube
+KUBENS = /usr/local/bin/kubens
+
+poc-serv: ## Proof of concept setup.
+	$(MINIKUBE) start
+	$(KUBECTL) create namespace argocd
+	$(KUBECTL) apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+	echo "Wait for server pod to be running, then run kubectl port-forward svc/argocd-server -n argocd 8080:443"
+
+poc-login: ## Login to argocd server
+	$(KUBECTL) -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo
+	$(ARGOCD) login localhost:8080 --insecure
+
+poc-admin: ## Apply admin configmap.
+	$(ARGOCD) proj create my-project
+	$(KUBENS) argocd
+	$(KUBECTL) apply -f config/samples/sample_admin_config.yaml
+	echo "Now run make install"
+
+poc-run: ## Proof of concept run dev project
+	$(KUBECTL) create namespace my-project-us-west-2
+	$(KUBENS) my-project-us-west-2
+	$(KUBECTL) apply -f config/samples/cluster_v1_appsource.yaml
+
+poc-reset: ## Reset sample Appsource
+	$(KUBECTL) delete appsource appsource-sample
+	$(KUBECTL) apply -f config/samples/sample_admin_config.yaml
+
+poc-clean: ## Delete minkube cluster
+	$(MINIKUBE) delete
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.

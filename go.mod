@@ -7,6 +7,7 @@ require (
 	// github.com/argoproj/argo-cd/v2 v2.0.3
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.13.0
+	k8s.io/api v0.19.2 // indirect
 	k8s.io/apimachinery v0.21.1
 	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible
 	sigs.k8s.io/controller-runtime v0.7.0

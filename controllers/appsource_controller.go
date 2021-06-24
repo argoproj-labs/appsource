@@ -20,13 +20,8 @@ import (
 	"context"
 	"errors"
 	"regexp"
-
-	//? I should figure out how to define this resource as a part of the
-	//? argocd API and not it's own stand-alone package
+	//? TODO Migrate AppSource to the ArgoCD API
 	clusterv1 "github.com/argoproj-labs/argocd-app-source/api/v1"
-
-	//ArgoCD Client Library
-	argocdClientSet "github.com/argoproj/argo-cd/pkg/apiclient"
 
 	//ArgoCD Types
 	applicationTypes "github.com/argoproj/argo-cd/pkg/apiclient/application"
@@ -46,22 +41,18 @@ type AppSourceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	ArgoAppClientset argocdClientSet.Client
-
+	ArgoProjectClient projectTypes.ProjectServiceClient
+	ArgoApplicationClient applicationTypes.ApplicationServiceClient
 	PatternRegexCompiler           *regexp.Regexp
-	ProjectGroupRegexCompiler      *regexp.Regexp
-	FirstCaptureGroupRegexCompiler *regexp.Regexp
+	ClusterHost string
+	ArgocdNS    string
 }
 
 //+kubebuilder:rbac:groups=cluster.my.domain,resources=appsources,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=cluster.my.domain,resources=appsources/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=cluster.my.domain,resources=appsources/finalizers,verbs=update
 
-// Reconcile v1.0: Reconciler is only called upon creation of an AppSource object
-//If the AppSource object's namespace matches the project pattern defined by admin
-//then the reconciler will cross reference it's existence with the ArgoCD API and
-//potentially create an Application through ArgoCD using the repoURL and path described
-//in AppSource.Spec
+// Reconcile v1.0: Called upon AppSource creation, handles namespace validation and Project/App creation
 func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
@@ -87,53 +78,115 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	return ctrl.Result{}, nil
 }
 
-//Validates the existence of ArgoCD Application with the name specified in AppSource.Name
-//If the Application does not exist, it is created through ArgoCD
-func (r *AppSourceReconciler) validateApplication(ctx context.Context, req ctrl.Request) (err error) {
-	//Search for application
-	closer, appClient, err := r.ArgoAppClientset.NewApplicationClient()
+//validateProjectSourceRepos Validates the existence of the Applications source repo within the AppProject SourceRepo list
+//Appends the Applications source repo if it is not present already
+func (r *AppSourceReconciler) validateProjectSourceRepos(ctx context.Context, projectName string, appSource *clusterv1.AppSource) (err error) {
+	appProject, err := r.ArgoProjectClient.Get(ctx, &projectTypes.ProjectQuery{Name: projectName})
 	if err != nil {
+		//Project should exist already
 		return err
 	}
-	defer closer.Close()
-	_, err = appClient.Get(ctx, &applicationTypes.ApplicationQuery{Name: &req.Name})
+	for _, sourceRepo := range appProject.Spec.SourceRepos {
+		if sourceRepo == appSource.Spec.RepoURL {
+			//Source Repo already present in project
+			return nil
+		}
+	}
+	//Source Repo not present, add to the list of sourceRepos
+	appProject.Spec.SourceRepos = append(appProject.Spec.SourceRepos, appSource.Spec.RepoURL)
+	_, err = r.ArgoProjectClient.Update(ctx, &projectTypes.ProjectUpdateRequest{Project: appProject})
+	return err
+}
+
+//validateProjectDestinations Validates the existence of Application destination within AppProject Destinations list
+//Appends the destination in question if it is not present already
+func (r *AppSourceReconciler) validateProjectDestinations(ctx context.Context, projectName string, appSourceDestination v1alpha1.ApplicationDestination) (err error) {
+	appProject, err := r.ArgoProjectClient.Get(ctx, &projectTypes.ProjectQuery{Name: projectName})
+	if err != nil {
+		//Project should exist already
+		return err
+	}
+	for _, destination := range appProject.Spec.Destinations {
+		if appSourceDestination == destination {
+			//App destination already present in project
+			return nil
+		}
+	}
+	//App destination does not exist already
+	appProject.Spec.Destinations = append(appProject.Spec.Destinations, appSourceDestination)
+	_, err = r.ArgoProjectClient.Update(ctx, &projectTypes.ProjectUpdateRequest{Project: appProject})
+	return err
+}
+
+//validateApplication Validates the existence of ArgoCD Application specified by the AppSource request.
+//If the Application does not exist, it is created
+func (r *AppSourceReconciler) validateApplication(ctx context.Context, req ctrl.Request) (err error) {
+	//Search for Application
+	_, err = r.ArgoApplicationClient.Get(ctx, &applicationTypes.ApplicationQuery{Name: &req.Name})
 	if err != nil {
 		//Application not found, create it
-		appSource := &clusterv1.AppSource{}
-		_ = r.Get(ctx, req.NamespacedName, appSource)
 		projectName, err := r.GetProjectName(req.Namespace)
 		if err != nil {
 			return err
 		}
-		_, err = appClient.Create(ctx,
+		appSource := &clusterv1.AppSource{}
+		_ = r.Get(ctx, req.NamespacedName, appSource)
+		if err != nil {
+			return err
+		}
+		err = r.validateProjectSourceRepos(ctx, projectName, appSource)
+		if err != nil {
+			return err
+		}
+		appSourceDestination := v1alpha1.ApplicationDestination{
+			Server: r.ClusterHost,
+			Namespace: req.Namespace,
+		}
+		err = r.validateProjectDestinations(ctx, projectName, appSourceDestination)
+		if err != nil {
+			return err
+		}
+		_, err = r.ArgoApplicationClient.Create(ctx,
 			&applicationTypes.ApplicationCreateRequest{
 				Application: v1alpha1.Application{
-					ObjectMeta: metav1.ObjectMeta{Name: req.Name},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: req.Name,
+						Namespace: r.ArgocdNS},
 					Spec: v1alpha1.ApplicationSpec{
 						Source: v1alpha1.ApplicationSource{
 							RepoURL: appSource.Spec.RepoURL,
 							Path:    appSource.Spec.Path,
 						},
-						//TODO Change project name to project capturing group or first capturing group
+						Destination: appSourceDestination,
 						Project: projectName,
 					},
 				}})
+		return err
 	}
-	return
+	return nil
 }
 
-//Extracts and returns the project name from AppSource namespace
-//Looks for the left-most match to a named capture group called project (case-sensitive), (?P<project>.*)
+//GetProjectName returns the first capturing group named "project" a namespace, defaults to first capturing group
+//Looks for the left-most match to a named capture group called project (case-sensitive), i.e (?P<project>.*)
 //If the named group is not found, it will grab the first capture group present, i.e (.*)
 func (r *AppSourceReconciler) GetProjectName(namespace string) (result string, err error) {
-	match := r.ProjectGroupRegexCompiler.Find([]byte(namespace))
-	if match == nil {
-		match = r.FirstCaptureGroupRegexCompiler.Find([]byte(namespace))
+	matches := r.PatternRegexCompiler.FindStringSubmatch(namespace)
+	if len(matches) < 2 {
+		return "", errors.New("no capturing groups found")
 	}
-	if match == nil {
-		return "", errors.New("project name could not be found from appsource namespace")
+	matchMap := make(map[string]string)
+	//Map potentially named groups to submatch
+	for i, subMatch := range r.PatternRegexCompiler.SubexpNames() {
+		if (i != 0) && (subMatch != ""){
+			matchMap[subMatch] = matches[i]
+		}
 	}
-	return string(match), nil
+	match, ok := matchMap["project"]
+	if !ok {
+		//First capturing group
+		match = matches[1]
+	}
+	return match, nil
 }
 
 //v1.0: ArgoCD Project must exist prior to validation
@@ -143,25 +196,28 @@ func (r *AppSourceReconciler) GetProjectName(namespace string) (result string, e
 //AppSource namespace = 'us-west-21', works
 //AppSource namespace = 'eu-payments-uk', does not work
 func (r *AppSourceReconciler) validateProject(ctx context.Context, req ctrl.Request) (err error) {
-	closer, appProjectClient, err := r.ArgoAppClientset.NewProjectClient()
-	if err != nil {
-		return err
-	}
-	defer closer.Close()
 	projectName, err := r.GetProjectName(req.Namespace)
 	if err != nil {
 		return err
 	}
-	_, err = appProjectClient.Get(ctx, &projectTypes.ProjectQuery{Name: projectName})
+	_, err = r.ArgoProjectClient.Get(ctx, &projectTypes.ProjectQuery{Name: projectName})
 	//TODO v1.1 Implement project creation logic, see commented out section below.
-	// if err != nil {
-	// 	//Project was not found, therefore we should create it
-	// 	appproject_req := v1alpha1.AppProject{}
-	// 	_, err = r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(argocdNS).Create(
-	// 		ctx,
-	// 		&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: req.Namespace}},
-	// 		metav1.CreateOptions{})
-	// }
+	//TODO If getting the project failed, then create it with no Destination/Source repos
+	//TODO at the moment.
+	//if err != nil {
+	//	//Project was not found, therefore we should create it
+	//	appproject_req := v1alpha1.AppProject{
+	//		ObjectMeta: metav1.ObjectMeta{
+	//			Name: projectName,
+	//			Namespace: "argocd",
+	//		},
+	//
+	//	}
+	//	_, err = r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(argocdNS).Create(
+	//		ctx,
+	//		&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: req.Namespace}},
+	//		metav1.CreateOptions{})
+	//}
 	return
 }
 
