@@ -4,6 +4,6 @@ metadata:
   name: argocd-source-cm
 data:
   argocd.address: localhost:8080 # Argo CD server hostname and port
-  argocd.token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxMzJlODA0Zi1kMzkyLTQzOGQtOWNmMi1mMTIzNTJmZTM1MTYiLCJpYXQiOjE2MjQ0MDQ0OTAsImlzcyI6ImFyZ29jZCIsIm5iZiI6MTYyNDQwNDQ5MCwic3ViIjoiYXBwc291cmNlOmFwaUtleSJ9.XUigwSXh9BOl4voBwGujV_PT7moUXoDf9H2g27z1638"
+  argocd.token: $TOKEN
   # Argo CD access token
   project.pattern: '(?P<project>.*)-us-(west|east)-(\d.*)'
