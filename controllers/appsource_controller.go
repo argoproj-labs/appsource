@@ -185,27 +185,18 @@ func (r *AppSourceReconciler) GetProjectName(namespace string) (result string, e
 	return match, nil
 }
 
-//v1.0: ArgoCD Project must exist prior to validation
-//Validates AppSource object namespace against project name pattern defined by admin
-//Example:
-//Admin pattern = '(.*)-(north|west|east|south|central)-(\d.*)
-//AppSource namespace = 'us-west-21', works
-//AppSource namespace = 'eu-payments-uk', does not work
+//validateProject Validates AppSource project against ArgoCD, empty project is created if it does not exist
 func (r *AppSourceReconciler) validateProject(ctx context.Context, req ctrl.Request) (err error) {
 	projectName, err := r.GetProjectName(req.Namespace)
 	if err != nil {
 		return err
 	}
 	_, err = r.ArgoProjectClient.Get(ctx, &projectTypes.ProjectQuery{Name: projectName})
-	//TODO v1.1 Implement project creation logic, see commented out section below.
-	//TODO If getting the project failed, then create it with no Destination/Source repos
-	//TODO at the moment.
 	if err != nil {
-		//Project was not found, therefore we should create it
+		//Project was not found
 		appProject := v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: projectName,
-				//Namespace: "argocd",
 			},
 
 		}
