@@ -56,13 +56,9 @@ type AppSourceReconciler struct {
 func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	patternMatchesNamespace, err := r.validateNamespacePattern(ctx, req)
-	if err != nil {
-		return ctrl.Result{Requeue: true}, err
-	}
-
+	patternMatchesNamespace := r.PatternRegexCompiler.Match([]byte(req.Namespace))
 	if patternMatchesNamespace {
-		err = r.validateProject(ctx, req)
+		err := r.validateProject(ctx, req)
 		if err != nil {
 			return ctrl.Result{Requeue: true}, err
 		}
@@ -218,12 +214,6 @@ func (r *AppSourceReconciler) validateProject(ctx context.Context, req ctrl.Requ
 	//		&v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: req.Namespace}},
 	//		metav1.CreateOptions{})
 	//}
-	return
-}
-
-// Returns whether requested AppSource object namespace matches allowed project pattern
-func (r *AppSourceReconciler) validateNamespacePattern(ctx context.Context, req ctrl.Request) (patternMatchesNamespace bool, err error) {
-	patternMatchesNamespace = r.PatternRegexCompiler.Match([]byte(req.Namespace))
 	return
 }
 
