@@ -9,10 +9,10 @@ A decentralized manager for ArgoCD — allow sub-admins to create and manage the
 - Clone this repo
 - Install ArgoCD
   - Create a ArgoCD account with apiKey capabilities
-  - Generate a token for that account using argocd account generate-token --account <username>
-- Run make install to apply CRD to your cluster
-- Create a admin ConfigMap, see config/samples for example manifests
-- Run make run to start the controller
-- Apply your AppSource manifests from your own project namespaces, see config/samples for example manfiests
+  - Generate a token for that account using `argocd account generate-token --account <username>`
+- Run `make install` to apply CRD to your cluster
+- Create a admin ConfigMap, see `config/samples` for example manifests
+- Run `make run` to start the controller
+- Apply your AppSource manifests from your own project namespaces, see `config/samples` for example manfiests
   
 *Please note*, currently the AppSource controller is in a proof-of-concept stage, the ArgoCD API is initialized with TLS Certificate authorization disabled.
