@@ -6,7 +6,7 @@ A decentralized manager for ArgoCD — allow sub-admins to create and manage the
 ## Motivation
 - Organizations would like to be able to provide development teams access to ArgoCD without needing to maintain/approve actions made to the Dev team's collection of applications. 
 ## Installation
-- Clone this repo
+- Clone this repo, `git clone https://github.com/aceamarco/argocd-app-source.git`
 - Install ArgoCD
   - Create a ArgoCD account with apiKey capabilities
   - Generate a token for that account using `argocd account generate-token --account <username>`
