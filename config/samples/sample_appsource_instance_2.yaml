@@ -1,0 +1,9 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppSource
+metadata:
+  name: appsource-sample2
+  namespace: my-project-us-east-2
+spec:
+  # Add fields here
+  path: helm-guestbook
+  repoURL: https://github.com/argoproj/argocd-example-apps
