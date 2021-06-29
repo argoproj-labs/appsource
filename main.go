@@ -19,10 +19,12 @@ package main
 import (
 	"context"
 	"flag"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/tools/clientcmd"
+	"fmt"
 	"os"
 	"regexp"
+
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/clientcmd"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -46,7 +48,7 @@ import (
 
 const (
 	//AppSource configmap name
-	appSourceCM = "argocd-source-cm"
+	appSourceCM = "argocd-appsource-cm"
 	//In-cluster server address
 	clusterServerName = "https://kubernetes.default.svc"
 	//ArgoCD namespace
@@ -66,15 +68,15 @@ func init() {
 }
 
 //GetAppSourceConfigmapOrDie returns the AppSource ConfigMap defined by admins or crashes with error
-func GetAppSourceConfigmapOrDie() (appSourceConfigmap *v1.ConfigMap) {
+func getAppSourceConfigmapOrDie() (appSourceConfigmap *v1.ConfigMap) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
 	overrides := clientcmd.ConfigOverrides{}
 	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
-	namespace, _, err := clientConfig.Namespace()
+	//namespace, _, err := clientConfig.Namespace()
 	config, err := clientConfig.ClientConfig()
 	if err != nil {
-		setupLog.Error(err, "failed to create kubernetes in-cluster config")
+		setupLog.Error(err, "failed to create kubernetes cluster config")
 		os.Exit(1)
 	}
 	clientset, err := kubernetes.NewForConfig(config)
@@ -83,12 +85,36 @@ func GetAppSourceConfigmapOrDie() (appSourceConfigmap *v1.ConfigMap) {
 		os.Exit(1)
 	}
 	//Get AppSource ConfigMap
-	appSourceConfigmap, err = clientset.CoreV1().ConfigMaps(namespace).Get(context.TODO(), appSourceCM, metav1.GetOptions{})
+	appSourceConfigmap, err = clientset.CoreV1().ConfigMaps("argocd").Get(context.TODO(), appSourceCM, metav1.GetOptions{})
 	if err != nil {
 		setupLog.Error(err, "failed to get appSource configmap")
 		os.Exit(1)
 	}
 	return
+}
+
+func getTokenSecretOrDie() (token string) {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
+	overrides := clientcmd.ConfigOverrides{}
+	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
+	//namespace, _, err := clientConfig.Namespace()
+	config, err := clientConfig.ClientConfig()
+	if err != nil {
+		setupLog.Error(err, "failed to create kubernetes cluster config")
+		os.Exit(1)
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		setupLog.Error(err, "failed to create kubernetes clientset")
+		os.Exit(1)
+	}
+	secret, err := clientset.CoreV1().Secrets("argocd").Get(context.TODO(), "argocd-appsource-secret", metav1.GetOptions{})
+	if err != nil {
+		setupLog.Error(err, "unable to get ArgoCD token secret")
+		os.Exit(1)
+	}
+	return secret.StringData["argocd-token"]
 }
 
 func main() {
@@ -122,18 +148,28 @@ func main() {
 	}
 
 	//AppSourceReconciler attribute initialization
-	appSourceConfigmap := GetAppSourceConfigmapOrDie()
-	argocdClient := argocdClientSet.NewClientOrDie(
+	appSourceConfigmap := getAppSourceConfigmapOrDie()
+	argocdClient, err := argocdClientSet.NewClient(
 		&argocdClientSet.ClientOptions{
 			ServerAddr: appSourceConfigmap.Data["argocd.address"],
 			AuthToken:  appSourceConfigmap.Data["argocd.token"],
 			//TODO Add cli flags to determine insecure connection
 			Insecure: true,
 		})
+	if err != nil {
+		//! Hmm, this is weird — the error showing up in logs has to do with the argocd token, but this error message
+		//! isn't showing up in the logs
+		setupLog.Error(err, fmt.Sprintf("Unable to start ArgoCD client, token %s", appSourceConfigmap.Data["argocd.token"]))
+		os.Exit(1)
+	}
 	closer, argocdApplicationClient := argocdClient.NewApplicationClientOrDie()
 	defer closer.Close()
 	closer, argocdProjectClient := argocdClient.NewProjectClientOrDie()
 	defer closer.Close()
+
+	setupLog.Info(fmt.Sprintf("Created ArgoCD Clients with token: %s", appSourceConfigmap.Data["argocd.token"]))
+	setupLog.Info(fmt.Sprintf("$TOKEN: %s", os.Getenv("TOKEN")))
+	setupLog.Info(fmt.Sprintf("Token secret value is: %s", getTokenSecretOrDie()))
 
 	//AppSourceReconciler Initialization
 	if err = (&controllers.AppSourceReconciler{
