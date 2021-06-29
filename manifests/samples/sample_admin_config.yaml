@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-appsource-cm
+  namespace: argocd
+data:
+  argocd.address: 172.17.0.6:8080 # Argo CD server hostname and port
+  argocd.token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI2MjhlZmFhMS0zOTI2LTRiN2UtYTlmMi00ZjUwODRkOWE4ZTkiLCJpYXQiOjE2MjQ5Nzc1MDQsImlzcyI6ImFyZ29jZCIsIm5iZiI6MTYyNDk3NzUwNCwic3ViIjoiYXBwc291cmNlOmFwaUtleSJ9.DtjWKhxR2apjIdUY9-WgPuPkIQlO62EeGv73N3oaZQ4"
+  # Argo CD access token
+  project.pattern: '(?P<project>.*)-us-(west|east)-(\d.*)'
