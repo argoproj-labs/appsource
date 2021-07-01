@@ -4,8 +4,6 @@ metadata:
   name: argocd-appsource-cm
   namespace: argocd
 data:
-  #172.17.0.6
+  #Use localhost:8080 ArgoCD was installed locally
   argocd.address: 172.17.0.6:8080 # Argo CD server hostname and port
-#  argocd.token: $(TOKEN)
-  # Argo CD access token
   project.pattern: '(?P<project>.*)-us-(west|east)-(\d.*)'
