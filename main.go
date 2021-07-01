@@ -93,30 +93,6 @@ func getAppSourceConfigmapOrDie() (appSourceConfigmap *v1.ConfigMap) {
 	return
 }
 
-func getTokenSecretOrDie() (token string) {
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
-	overrides := clientcmd.ConfigOverrides{}
-	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
-	//namespace, _, err := clientConfig.Namespace()
-	config, err := clientConfig.ClientConfig()
-	if err != nil {
-		setupLog.Error(err, "failed to create kubernetes cluster config")
-		os.Exit(1)
-	}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		setupLog.Error(err, "failed to create kubernetes clientset")
-		os.Exit(1)
-	}
-	secret, err := clientset.CoreV1().Secrets("argocd").Get(context.TODO(), "argocd-appsource-secret", metav1.GetOptions{})
-	if err != nil {
-		setupLog.Error(err, "unable to get ArgoCD token secret")
-		os.Exit(1)
-	}
-	return secret.StringData["argocd-token"]
-}
-
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
@@ -152,7 +128,7 @@ func main() {
 	argocdClient, err := argocdClientSet.NewClient(
 		&argocdClientSet.ClientOptions{
 			ServerAddr: appSourceConfigmap.Data["argocd.address"],
-			AuthToken:  appSourceConfigmap.Data["argocd.token"],
+			AuthToken:  os.Getenv("TOKEN"),
 			//TODO Add cli flags to determine insecure connection
 			Insecure: true,
 		})
@@ -167,9 +143,7 @@ func main() {
 	closer, argocdProjectClient := argocdClient.NewProjectClientOrDie()
 	defer closer.Close()
 
-	setupLog.Info(fmt.Sprintf("Created ArgoCD Clients with token: %s", appSourceConfigmap.Data["argocd.token"]))
-	setupLog.Info(fmt.Sprintf("$TOKEN: %s", os.Getenv("TOKEN")))
-	setupLog.Info(fmt.Sprintf("Token secret value is: %s", getTokenSecretOrDie()))
+	setupLog.Info(fmt.Sprintf("TOKEN: %s", os.Getenv("TOKEN")))
 
 	//AppSourceReconciler Initialization
 	if err = (&controllers.AppSourceReconciler{

@@ -17,12 +17,19 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-appsource-controller
     spec:
+      volumes:
+        - name: argocd-appsource-config-volume
+          configMap:
+            name: argocd-appsource-cm
       containers:
       - command:
         - /manager
         image: macea/controller:latest
         imagePullPolicy: Always
         name: manager
+        volumeMounts:
+        - name: argocd-appsource-config-volume
+          mountPath: /etc/config
         env:
         - name: TOKEN
           valueFrom:

@@ -377,4 +377,11 @@ spec:
         image: macea/controller:latest
         imagePullPolicy: Always
         name: manager
+        volumeMounts:
+        - mountPath: /etc/config
+          name: argocd-appsource-config-volume
       serviceAccountName: argocd-appsource-controller
+      volumes:
+      - configMap:
+          name: argocd-appsource-cm
+        name: argocd-appsource-config-volume

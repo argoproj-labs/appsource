@@ -147,6 +147,12 @@ image:
 	$(DOCKER) build -t macea/controller:latest .
 	$(DOCKER) push macea/controller:latest
 
+token-secret:
+	$(shell hack/generate-secret-token.sh)
+	-$(KUBECTL) delete secret argocd-appsource-secret -n argocd
+	$(KUBECTL) create secret generic argocd-appsource-secret --from-literal argocd-token=$TOKEN
+
+
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
