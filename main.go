@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/clientcmd"
@@ -125,12 +126,19 @@ func main() {
 
 	//AppSourceReconciler attribute initialization
 	appSourceConfigmap := getAppSourceConfigmapOrDie()
+	insecure_str := os.Getenv("INSECURE")
+	insecure := false
+	if insecure_str != "" {
+		if insecure, err = strconv.ParseBool(insecure_str); err != nil {
+			setupLog.Error(err, "insecure field must be a boolean")
+			os.Exit(1)
+		}
+	}
 	argocdClient, err := argocdClientSet.NewClient(
 		&argocdClientSet.ClientOptions{
 			ServerAddr: appSourceConfigmap.Data["argocd.address"],
 			AuthToken:  os.Getenv("TOKEN"),
-			//TODO Add cli flags to determine insecure connection
-			Insecure: true,
+			Insecure:   insecure,
 		})
 	if err != nil {
 		//! Hmm, this is weird — the error showing up in logs has to do with the argocd token, but this error message

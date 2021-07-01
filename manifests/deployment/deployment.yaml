@@ -27,13 +27,17 @@ spec:
         image: macea/controller:latest
         imagePullPolicy: Always
         name: manager
-        volumeMounts:
-        - name: argocd-appsource-config-volume
-          mountPath: /etc/config
         env:
         - name: TOKEN
           valueFrom:
             secretKeyRef:
               name: argocd-appsource-secret
               key: argocd-token
+        - name: INSECURE
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-appsource-cm
+              key: insecure
+              optional: true
+
       serviceAccountName: argocd-appsource-controller

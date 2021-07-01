@@ -374,12 +374,15 @@ spec:
             secretKeyRef:
               key: argocd-token
               name: argocd-appsource-secret
+        - name: INSECURE
+          valueFrom:
+            configMapKeyRef:
+              key: insecure
+              name: argocd-appsource-cm
+              optional: true
         image: macea/controller:latest
         imagePullPolicy: Always
         name: manager
-        volumeMounts:
-        - mountPath: /etc/config
-          name: argocd-appsource-config-volume
       serviceAccountName: argocd-appsource-controller
       volumes:
       - configMap:
