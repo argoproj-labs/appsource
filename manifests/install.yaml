@@ -377,7 +377,7 @@ spec:
         - name: INSECURE
           valueFrom:
             configMapKeyRef:
-              key: insecure
+              key: argocd.insecure
               name: argocd-appsource-cm
               optional: true
         image: macea/controller:latest

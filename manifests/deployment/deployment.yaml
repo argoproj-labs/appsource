@@ -37,7 +37,7 @@ spec:
           valueFrom:
             configMapKeyRef:
               name: argocd-appsource-cm
-              key: insecure
+              key: argocd.insecure
               optional: true
 
       serviceAccountName: argocd-appsource-controller
