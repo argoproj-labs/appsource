@@ -1,9 +1,8 @@
 # Getting Started
-## 1. Install and Configure ArgoCD
+## 1. Install ArgoCD
 Follow these steps if you __want to get ArgoCD running on a local cluster__, 
-or follow the [Getting Started](https://argo-cd.readthedocs.io/en/stable/getting_started/) guide from ArgoCD if you want to configure it for some specific need.
+or follow the [Getting Started](https://argo-cd.readthedocs.io/en/stable/getting_started/) guide from ArgoCD if you want to install it to some specific needs.
 
-Skip to Step 2 to install AppSource
 ### Apply ArgoCD Manifest
 ```shell
 kubectl create namespace argocd
@@ -14,16 +13,19 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 kubectl port-forward svc/argocd-server -n argocd 8080:443
 ```
 ### Create an ArgoCD Service Account to generate API Token
+
 #### Get first-time login admin password
 ```shell
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo
 ```
+
 #### Log in to admin account
 ```shell
-argocd login localhost:8080 --insecure
+argocd login localhost:8080 --account admin --insecure
 ```
-Use the username `admin` and the password from the previous section.
-#### Create appsource account
+Use the password from the previous section.
+
+## 2. Create AppSource account
 Open the `argocd-cm` config map
 ```shell
 kubectl edit configmap argocd-cm -n argocd
@@ -33,13 +35,13 @@ Add `appsource` to the list of accounts by editing the `data` field.
 data:
   accounts.appsource: apiKey, login
 ```
-##### Optional: Update appsource password and diable admin account
-###### Update appsource password
+### Optional: Update appsource password and disable admin account
+#### Update appsource password
 Use _admin password_ when prompted for the `current password`
 ```shell
 argocd account update-password --account appsource
 ```
-###### Disable admin account
+#### Disable admin account
 Per ArgoCD Guidlines, you should disable the `admin` account after creating a ArgoCD user account.
 ```shell
 kubectl edit configmap argocd-cm -n argocd
@@ -50,12 +52,12 @@ data:
   accounts.appsource: apiKey, login
   admin.enabled: "false"
 ```
-###### Log in with appsource account
-Use the updated password to login.
+### Log in with appsource account
+Use the admin or updated (optional step above) password to log in.
 ```shell
 argocd login localhost:8080 --insecure --account appsource
 ```
-#### Give appsource account necessary API permissions
+### Give appsource account necessary API permissions
 Open the `argocd-rbac-cm` config map
 ```shell
 kubectl edit configmap argocd-rbac-cm -n argocd
@@ -71,7 +73,7 @@ data:
     p, role:appsource, clusters, *, *, allow
     g, appsource, role:appsource
 ```
-## 2. Install AppSource
+## 3. Install AppSource
 Prior to installing the AppSource controller, you need to create the admin configuration and ArgoCD API token secret for the controller.
 ### Create Admin ConfigMap
 A minimal admin configmap looks like:
@@ -82,8 +84,9 @@ metadata:
   name: argocd-appsource-cm
   namespace: argocd
 data:
-  #Use localhost:8080 ArgoCD was installed locally
-  argocd.address: 172.17.0.6:8080 # Argo CD server hostname and port
+  #Use localhost:8080 if running AppSource controller locally
+  argocd.address:  172.17.0.6:8080                         # Argo CD server hostname and port
+  argocd.insecure: true                                    #Optional, disables TLS for API client
   project.pattern: '(?P<project>.*)-us-(west|east)-(\d.*)'
 ```
 ### Create Secret containing a API Token for AppSource ArgoCD account
