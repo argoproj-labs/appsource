@@ -30,7 +30,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	argoprojv1alpha1 "github.com/argoproj-labs/argocd-app-source/api/v1alpha1"
+	argoprojv1alpha1 "github.com/argoproj-labs/argocd-app-source/pkg/api/v1alpha1"
 	//+kubebuilder:scaffold:imports
 )
 

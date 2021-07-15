@@ -28,16 +28,10 @@ spec:
         imagePullPolicy: Always
         name: manager
         env:
-        - name: TOKEN
+        - name: ARGOCD_TOKEN
           valueFrom:
             secretKeyRef:
               name: argocd-appsource-secret
               key: argocd-token
-        - name: INSECURE
-          valueFrom:
-            configMapKeyRef:
-              name: argocd-appsource-cm
-              key: argocd.insecure
-              optional: true
 
       serviceAccountName: argocd-appsource-controller

@@ -17,15 +17,8 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"flag"
-	"fmt"
 	"os"
-	"regexp"
-	"strconv"
-
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/tools/clientcmd"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -33,23 +26,19 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	argoprojv1alpha1 "github.com/argoproj-labs/argocd-app-source/pkg/api/v1alpha1"
+	"github.com/argoproj-labs/argocd-app-source/pkg/controllers"
 	argocdClientSet "github.com/argoproj/argo-cd/pkg/apiclient"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	argoprojv1alpha1 "github.com/argoproj-labs/argocd-app-source/api/v1alpha1"
-	"github.com/argoproj-labs/argocd-app-source/controllers"
+	"github.com/ghodss/yaml"
 	//+kubebuilder:scaffold:imports
 )
 
 const (
-	//AppSource configmap name
-	appSourceCM = "argocd-appsource-cm"
 	//In-cluster server address
 	clusterServerName = "https://kubernetes.default.svc"
 	//ArgoCD namespace
@@ -66,32 +55,6 @@ func init() {
 
 	utilruntime.Must(argoprojv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
-}
-
-//GetAppSourceConfigmapOrDie returns the AppSource ConfigMap defined by admins or crashes with error
-func getAppSourceConfigmapOrDie() (appSourceConfigmap *v1.ConfigMap) {
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
-	overrides := clientcmd.ConfigOverrides{}
-	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
-	//namespace, _, err := clientConfig.Namespace()
-	config, err := clientConfig.ClientConfig()
-	if err != nil {
-		setupLog.Error(err, "failed to create kubernetes cluster config")
-		os.Exit(1)
-	}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		setupLog.Error(err, "failed to create kubernetes clientset")
-		os.Exit(1)
-	}
-	//Get AppSource ConfigMap
-	appSourceConfigmap, err = clientset.CoreV1().ConfigMaps("argocd").Get(context.TODO(), appSourceCM, metav1.GetOptions{})
-	if err != nil {
-		setupLog.Error(err, "failed to get appSource configmap")
-		os.Exit(1)
-	}
-	return
 }
 
 func main() {
@@ -124,26 +87,28 @@ func main() {
 		os.Exit(1)
 	}
 
+	//AppSourceReconciler Initialization
 	//AppSourceReconciler attribute initialization
-	appSourceConfigmap := getAppSourceConfigmapOrDie()
-	insecure_str := os.Getenv("INSECURE")
-	insecure := false
-	if insecure_str != "" {
-		if insecure, err = strconv.ParseBool(insecure_str); err != nil {
-			setupLog.Error(err, "insecure field must be a boolean")
-			os.Exit(1)
-		}
-	}
-	argocdClient, err := argocdClientSet.NewClient(
-		&argocdClientSet.ClientOptions{
-			ServerAddr: appSourceConfigmap.Data["argocd.address"],
-			AuthToken:  os.Getenv("TOKEN"),
-			Insecure:   insecure,
-		})
+	appsourceConfigMap, err := controllers.GetAppSourceConfigmap()
 	if err != nil {
-		//! Hmm, this is weird — the error showing up in logs has to do with the argocd token, but this error message
-		//! isn't showing up in the logs
-		setupLog.Error(err, fmt.Sprintf("Unable to start ArgoCD client, token %s", appSourceConfigmap.Data["argocd.token"]))
+		setupLog.Error(err, "unable to get configmap")
+		os.Exit(1)
+	}
+
+	appsourceProjectTemplate := controllers.ProjectTemplate{}
+	err = yaml.Unmarshal([]byte(appsourceConfigMap.Data["projectTemplate"]), &appsourceProjectTemplate)
+	if err != nil {
+		setupLog.Error(err, "unable to unmarshal project template")
+		os.Exit(1)
+	}
+	argocdClientOpts, err := controllers.GetClientOpts(*appsourceConfigMap)
+	if err != nil {
+		setupLog.Error(err, "unable to parse client options")
+		os.Exit(1)
+	}
+	argocdClient, err := argocdClientSet.NewClient(argocdClientOpts)
+	if err != nil {
+		setupLog.Error(err, "unable to start ArgoCD Client")
 		os.Exit(1)
 	}
 	closer, argocdApplicationClient := argocdClient.NewApplicationClientOrDie()
@@ -151,19 +116,16 @@ func main() {
 	closer, argocdProjectClient := argocdClient.NewProjectClientOrDie()
 	defer closer.Close()
 
-	setupLog.Info(fmt.Sprintf("TOKEN: %s", os.Getenv("TOKEN")))
-
-	//AppSourceReconciler Initialization
 	if err = (&controllers.AppSourceReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 
-		//AppSourceReconciler specific Attributes
 		ArgoApplicationClient: argocdApplicationClient,
 		ArgoProjectClient:     argocdProjectClient,
-		PatternRegexCompiler:  regexp.MustCompile(appSourceConfigmap.Data["project.pattern"]),
-		ClusterHost:           clusterServerName,
+		Project:               appsourceProjectTemplate,
+		Compilers:             controllers.GetCompilers(appsourceProjectTemplate),
 		ArgocdNS:              argocdNamespace,
+		ClusterHost:           clusterServerName,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AppSource")
 		os.Exit(1)

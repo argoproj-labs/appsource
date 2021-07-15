@@ -369,17 +369,11 @@ spec:
       - command:
         - /manager
         env:
-        - name: TOKEN
+        - name: ARGOCD_TOKEN
           valueFrom:
             secretKeyRef:
               key: argocd-token
               name: argocd-appsource-secret
-        - name: INSECURE
-          valueFrom:
-            configMapKeyRef:
-              key: argocd.insecure
-              name: argocd-appsource-cm
-              optional: true
         image: macea/controller:latest
         imagePullPolicy: Always
         name: manager

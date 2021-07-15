@@ -144,7 +144,7 @@ delete-samples:
 clean-samples: delete-samples delete-deployment
 
 image:
-	$(DOCKER) build -t macea/controller:latest .
+	$(DOCKER) build --progress=plain -t macea/controller:latest .
 	$(DOCKER) push macea/controller:latest
 
 token-secret:
