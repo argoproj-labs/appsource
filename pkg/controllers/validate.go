@@ -102,26 +102,6 @@ func (r *AppSourceReconciler) validateProjectDestinations(ctx context.Context, p
 	return err
 }
 
-// //validateProjectSourceRepos Validates the existence of the Applications source repo within the AppProject SourceRepo list
-// //Appends the Applications source repo if it is not present already
-// func (r *AppSourceReconciler) validateProjectSourceRepos(ctx context.Context, projectName string, appSource *argoprojv1alpha1.AppSource) (err error) {
-// 	appProject, err := r.ArgoProjectClient.Get(ctx, &projectTypes.ProjectQuery{Name: projectName})
-// 	if err != nil {
-// 		//Project should exist already
-// 		return err
-// 	}
-// 	for _, sourceRepo := range appProject.Spec.SourceRepos {
-// 		if sourceRepo == appSource.Spec.RepoURL {
-// 			//Source Repo already present in project
-// 			return nil
-// 		}
-// 	}
-// 	//Source Repo not present, add to the list of sourceRepos
-// 	appProject.Spec.SourceRepos = append(appProject.Spec.SourceRepos, appSource.Spec.RepoURL)
-// 	_, err = r.ArgoProjectClient.Update(ctx, &projectTypes.ProjectUpdateRequest{Project: appProject})
-// 	return err
-// }
-
 //getProjectName returns the first capturing group named "project" a namespace, defaults to first capturing group
 //Looks for the left-most match to a named capture group called project (case-sensitive), i.e (?P<project>.*)
 //If the named group is not found, it will grab the first capture group present, i.e (.*)

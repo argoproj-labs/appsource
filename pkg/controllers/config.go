@@ -29,6 +29,8 @@ type ProjectTemplate struct {
 	Spec        *argocd.AppProjectSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
 }
 
+// getFlag returns flags[key] or fallback string if key
+// does not exist
 func getFlag(key, fallback string) string {
 	val, ok := flags[key]
 	if ok {
@@ -37,10 +39,14 @@ func getFlag(key, fallback string) string {
 	return fallback
 }
 
+// getBoolFlag returns flags[key] boolean or false if key
+// does not exist
 func getBoolFlag(key string) bool {
 	return getFlag(key, "false") == "true"
 }
 
+// loadFlags populates the flags map with any keys and
+// values found in the clientOpts string
 func loadFlags(clientOpts string) (err error) {
 	opts, err := shellquote.Split(clientOpts)
 	if err != nil {
@@ -68,6 +74,8 @@ func loadFlags(clientOpts string) (err error) {
 	return nil
 }
 
+// GetClientOpts loads all the flags found in the AppSource configmap
+// and returns a ArgoCD ClientOpts object with any fields found
 func GetClientOpts(appsourceConfigMap v1.ConfigMap) (*argocdClientSet.ClientOptions, error) {
 	err := loadFlags(appsourceConfigMap.Data["argocd.clientOpts"])
 	if err != nil {

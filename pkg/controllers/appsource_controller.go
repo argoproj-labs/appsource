@@ -42,14 +42,22 @@ type AppSourceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	ArgoProjectClient     projectTypes.ProjectServiceClient
+	// ArgoCD Project Client
+	ArgoProjectClient projectTypes.ProjectServiceClient
+	// ArgoCD Application Client
 	ArgoApplicationClient applicationTypes.ApplicationServiceClient
-	Project               ProjectTemplate
-	Compilers             Compilers
-	ClusterHost           string
-	ArgocdNS              string
+	// ArgoCD Project Template
+	Project ProjectTemplate
+	// Regex Compilers
+	Compilers Compilers
+	// Server Address
+	ClusterHost string
+	// ArgoCD Namespace
+	ArgocdNS string
 }
 
+// GetCompilers returns all Regex compilers described by regex strings
+// found in the appsource configuration
 func GetCompilers(template ProjectTemplate) (C Compilers) {
 	if template.NamePattern != "" {
 		C.Pattern = regexp.MustCompile(template.NamePattern)
