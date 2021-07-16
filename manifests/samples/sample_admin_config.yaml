@@ -6,7 +6,7 @@ metadata:
 data:
   argocd.address: 172.17.0.6:8080
   argocd.clientOpts: "--insecure"
-  projectTemplate: |
+  project.template: |
     namePattern: (?P<project>.*)-us-(west|east)-(\d.*)
     spec:
       # Project description

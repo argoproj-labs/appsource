@@ -96,7 +96,7 @@ func main() {
 	}
 
 	appsourceProjectTemplate := controllers.ProjectTemplate{}
-	err = yaml.Unmarshal([]byte(appsourceConfigMap.Data["projectTemplate"]), &appsourceProjectTemplate)
+	err = yaml.Unmarshal([]byte(appsourceConfigMap.Data["project.template"]), &appsourceProjectTemplate)
 	if err != nil {
 		setupLog.Error(err, "unable to unmarshal project template")
 		os.Exit(1)
