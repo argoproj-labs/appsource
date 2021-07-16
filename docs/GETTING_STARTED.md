@@ -76,7 +76,7 @@ data:
 ## 3. Install AppSource
 Prior to installing the AppSource controller, you need to create the admin configuration and ArgoCD API token secret for the controller.
 ### Create Admin ConfigMap
-A minimal admin configmap looks like:
+Here is what a minimal admin configmap looks like:
 ```yaml
 apiVersion: v1
 kind: ConfigMap
@@ -84,10 +84,17 @@ metadata:
   name: argocd-appsource-cm
   namespace: argocd
 data:
-  #Use localhost:8080 if running AppSource controller locally
-  argocd.address:  172.17.0.6:8080                         # Argo CD server hostname and port
-  argocd.insecure: true                                    #Optional, disables TLS for API client
-  project.pattern: '(?P<project>.*)-us-(west|east)-(\d.*)'
+  argocd.address: localhost:8080
+  argocd.clientOpts: "--insecure"
+  project.template: |
+    namePattern: (?P<project>.*)-us-(west|east)-(\d.*)
+    spec:
+      # Project description
+      description: Example Project
+
+      # Allow manifests to deploy from any Git repos
+      sourceRepos:
+      - '*'
 ```
 ### Create Secret containing a API Token for AppSource ArgoCD account
 ```shell
