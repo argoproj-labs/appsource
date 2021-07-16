@@ -1,0 +1,13 @@
+# Adds namespace to all resources.
+namespace: argocd
+
+# Labels to add to all resources and selectors.
+commonLabels:
+  app.kubernetes.io/name: argocd-appsource-controller
+  app.kubernetes.io/part-of: argocd-appsource
+  app.kubernetes.io/component: controller
+
+bases:
+- ../crd
+- ../rbac
+- ../deployment

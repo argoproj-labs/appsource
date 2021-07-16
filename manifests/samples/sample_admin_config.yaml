@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-appsource-cm
+  namespace: argocd
+data:
+  argocd.address: 172.17.0.6:8080
+  argocd.clientOpts: "--insecure"
+  project.template: |
+    namePattern: (?P<project>.*)-us-(west|east)-(\d.*)
+    spec:
+      # Project description
+      description: Example Project
+
+      # Allow manifests to deploy from any Argoproj Git repo
+      sourceRepos:
+      - 'https://github.com/argoproj/*'
+
+      # Deny all cluster-scoped resources from being created, except for Namespace
+      clusterResourceWhitelist:
+      - group: ''
+        kind: Namespace
+
+      # Allow all namespaced-scoped resources to be created, except for ResourceQuota, LimitRange, NetworkPolicy
+      namespaceResourceBlacklist:
+      - group: ''
+        kind: ResourceQuota
+      - group: ''
+        kind: LimitRange
+      - group: ''
+        kind: NetworkPolicy
+
+      # Deny all namespaced-scoped resources from being created, except for Deployment and StatefulSet
+      namespaceResourceWhitelist:
+      - group: 'apps'
+        kind: Deployment
+      - group: 'apps'
+        kind: StatefulSet
+
+      # Enables namespace orphaned resource monitoring.
+      orphanedResources:
+        warn: false
+
+      roles:
+      # A role which provides read-only access to all applications in the project
+      - name: read-only
+        description: Read-only privileges to my-project
+        policies:
+        - p, proj:my-project:read-only, applications, get, my-project/*, allow
+        groups:
+        - my-oidc-group
+
+      # A role which provides sync privileges to only the guestbook-dev application, e.g. to provide
+      # sync privileges to a CI system
+      - name: ci-role
+        description: Sync privileges for guestbook-dev
+        policies:
+        - p, proj:my-project:ci-role, applications, sync, my-project/guestbook-dev, allow

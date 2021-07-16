@@ -1,0 +1,66 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-appsource-controller
+    app.kubernetes.io/part-of: argocd-appsource
+    app.kubernetes.io/component: controller
+  name: argocd-appsource-controller
+rules:
+  - apiGroups:
+      - argoproj.io
+    resources:
+      - appsources
+      - appsources/finalizers
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - argoproj.io
+    resources:
+      - appsources/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - ''
+    resources:
+      - events
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - ''
+    resources:
+      - secrets
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - apps
+      - extensions
+    resources:
+      - deployments
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ''
+    resources:
+      - clusters
+    verbs:
+      - update

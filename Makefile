@@ -1,8 +1,9 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= macea/controller:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
+AUTOGENMSG="# This is an auto-generated file. DO NOT EDIT"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -37,8 +38,13 @@ help: ## Display this help.
 
 ##@ Development
 
-manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+manifests: kustomize controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=manifests/crd/bases
+	cd manifests/deployment && $(KUSTOMIZE) edit set image controller=${IMG}
+	touch manifests/install.yaml
+	echo "# This is an auto-generated file. DO NOT EDIT" > manifests/install.yaml
+	${KUSTOMIZE} build manifests/namespace-install/. >> manifests/install.yaml
+	chmod 644 manifests/install.yaml
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -49,12 +55,6 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
-ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
-test: manifests generate fmt vet ## Run tests.
-	mkdir -p ${ENVTEST_ASSETS_DIR}
-	test -f ${ENVTEST_ASSETS_DIR}/setup-envtest.sh || curl -sSLo ${ENVTEST_ASSETS_DIR}/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.8.3/hack/setup-envtest.sh
-	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test ./... -coverprofile cover.out
-
 ##@ Build
 
 build: generate fmt vet ## Build manager binary.
@@ -63,33 +63,19 @@ build: generate fmt vet ## Build manager binary.
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
-docker-build: test ## Build docker image with the manager.
+docker-build: ## Build docker image with the manager.
 	docker build -t ${IMG} .
 
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
 
-##@ Deployment
-
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
-
-uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl delete -f -
-
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
-
-undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | kubectl delete -f -
-
 ##@ Proof of Concept
 
-KUBECTL = /usr/local/bin/kubectl
-ARGOCD = /usr/local/bin/argocd
-MINIKUBE = /usr/local/bin/minikube
-KUBENS = /usr/local/bin/kubens
+KUBECTL = $(shell which kubectl)
+ARGOCD = $(shell which argocd)
+MINIKUBE = $(shell which minikube)
+KUBENS = $(shell which kubens)
+DOCKER = $(shell which docker)
 
 poc-serv: ## Proof of concept setup.
 	$(MINIKUBE) start
@@ -104,26 +90,66 @@ poc-login: ## Login to argocd server
 poc-admin: ## Apply admin configmap.
 	$(ARGOCD) proj create my-project
 	$(KUBENS) argocd
-	$(KUBECTL) apply -f config/samples/sample_admin_config.yaml
+	$(KUBECTL) apply -f manifests/samples/sample_admin_config.yaml
 	echo "Now run make install"
 
-poc-run: ## Proof of concept run dev project
+poc-run: poc-reset ## Proof of concept run dev project
 	$(KUBECTL) create namespace my-project-us-west-2
 	$(KUBENS) my-project-us-west-2
-	$(KUBECTL) apply -f config/samples/cluster_v1_appsource.yaml
+	$(KUBECTL) apply -f manifests/samples/sample_appsource_instance_1.yaml
 
 poc-reset: ## Reset sample Appsource
-	$(KUBECTL) delete appsource appsource-sample
-	$(KUBECTL) apply -f config/samples/sample_admin_config.yaml
+	$(KUBECTL) delete appsource appsource-sample1
+	$(kUBECTL) delete namespace my-project-us-west-2
+	$(KUBECTL) apply -f manifests/samples/sample_admin_config.yaml
 
 poc-clean: ## Delete minkube cluster
 	$(MINIKUBE) delete
+
+delete-deployment:
+	-$(KUBENS) argocd
+	$(KUBECTL) delete deployment argocd-appsource-controller
+
+logs:
+	-$(KUBENS) argocd
+	$(KUBECTL) logs --follow deploy/argocd-appsource-controller
+
+token:
+	-$(KUBENS) argocd
+	-$(KUBECTL) delete secret argocd-appsource-secret
+	TOKEN=$($(ARGOCD) account generate-token --account appsource)
+	$(KUBECTL) create secret generic argocd-appsource-secret --from-literal argocd-token=$(TOKEN)
+
+deployment: manifests
+	-$(KUBECTL) apply -f manifests/install.yaml
+
+sample-1:
+	-$(KUBECTL) create namespace my-project-us-west-2
+	-$(KUBENS) my-project-us-west-2
+	$(KUBECTL) apply -f manifests/samples/sample_appsource_instance_1.yaml
+
+sample-2:
+	-$(KUBECTL) create namespace my-project-us-east-2
+	-$(KUBENS) my-project-us-east-2
+	$(KUBECTL) apply -f manifests/samples/sample_appsource_instance_2.yaml
+
+samples: sample-1 sample-2
+
+delete-samples:
+	-$(KUBECTL) delete appsource appsource-sample1 -n my-project-us-west-2
+	-$(KUBECTL) delete appsource appsource-sample2 -n my-project-us-east-2
+
+clean-samples: delete-samples delete-deployment
+
+image:
+	$(DOCKER) build --progress=plain -t macea/controller:latest .
+	$(DOCKER) push macea/controller:latest
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
 
-KUSTOMIZE = $(shell pwd)/bin/kustomize
+KUSTOMIZE = $(shell which kustomize)
 kustomize: ## Download kustomize locally if necessary.
 	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
 
