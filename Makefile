@@ -137,9 +137,7 @@ samples: sample-1 sample-2
 
 delete-samples:
 	-$(KUBECTL) delete appsource appsource-sample1 -n my-project-us-west-2
-	-$(ARGOCD) app delete appsource-sample1 --cascade
 	-$(KUBECTL) delete appsource appsource-sample2 -n my-project-us-east-2
-	-$(ARGOCD) app delete appsource-sample2 --cascade
 
 clean-samples: delete-samples delete-deployment
 

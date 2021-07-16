@@ -73,6 +73,20 @@ func GetCompilers(template ProjectTemplate) (C Compilers) {
 func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
+	// Check if Application was deleted
+	appSource := &argoprojv1alpha1.AppSource{}
+	err := r.Get(ctx, req.NamespacedName, appSource)
+	if err != nil {
+		//Delete corresponding ArgoCD Application
+		cascade := true
+		_, err := r.ArgoApplicationClient.Delete(ctx, &applicationTypes.ApplicationDeleteRequest{
+			Name:    &req.Name,
+			Cascade: &cascade,
+		})
+		return ctrl.Result{}, err
+	}
+
+	// Create the Application if necessary
 	patternMatchesNamespace := r.Compilers.Pattern.Match([]byte(req.Namespace))
 	if patternMatchesNamespace {
 		err := r.validateProject(ctx, req)
