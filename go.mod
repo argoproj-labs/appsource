@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/argoproj/argo-cd v1.8.7
+	github.com/ghodss/yaml v1.0.0
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	// github.com/argoproj/argo-cd/v2 v2.0.3
 	github.com/onsi/ginkgo v1.16.4
