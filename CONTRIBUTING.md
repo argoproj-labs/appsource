@@ -6,7 +6,7 @@ If you are creating an issue the following sections are required:
 - **Motivation**
 - **Purpose**
 
-**Issues must be labeled.**
+**Issues must be labeled. If using "good first issue" add another label**
 **If applicable, assign issue to a milestone and project**
 
 ## Picking up an issue
