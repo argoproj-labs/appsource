@@ -9,3 +9,4 @@ A decentralized manager for ArgoCD — allow sub-admins to create and manage the
 - Clone this repo, `git clone https://github.com/aceamarco/argocd-app-source.git`
 - Install ArgoCD
 **Being replaced with Install ArgoCD section from getting started md file**
+**Install single manifest**
