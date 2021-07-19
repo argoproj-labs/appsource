@@ -75,7 +75,7 @@ func (r *AppSourceReconciler) validateProject(ctx context.Context, req ctrl.Requ
 		}
 		_, err = r.ArgoProjectClient.Create(ctx, &projectTypes.ProjectCreateRequest{
 			Project: &appProject,
-			Upsert:  false,
+			Upsert:  true,
 		})
 		return err
 	}
