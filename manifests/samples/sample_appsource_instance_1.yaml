@@ -4,7 +4,7 @@ metadata:
   name: appsource-sample1
   namespace: my-project-us-west-2
   finalizers:
-  - "argoproj.io/appsource-finalizer-fg-cascade"
+  - "application-finalizer.appsource.argoproj.io"
 spec:
   # Add fields here
   path: kustomize-guestbook

@@ -69,15 +69,15 @@ func GetCompilers(template ProjectTemplate) (C Compilers) {
 func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	var appSource *argoprojv1alpha1.AppSource
-	if err := r.Get(ctx, req.NamespacedName, appSource); err != nil {
+	var appSource argoprojv1alpha1.AppSource = argoprojv1alpha1.AppSource{}
+	if err := r.Get(ctx, req.NamespacedName, &appSource); err != nil {
 		//Ignore not-found errors
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	if !appSource.ObjectMeta.DeletionTimestamp.IsZero() {
 		//Returns nil if nothing went wrong, non-nil err if encountered problem
-		return ctrl.Result{}, r.ResolveFinalizers(ctx, appSource)
+		return ctrl.Result{}, r.ResolveFinalizers(ctx, &appSource)
 	}
 
 	// Create the Application if necessary
