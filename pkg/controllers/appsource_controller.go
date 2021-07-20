@@ -65,25 +65,19 @@ func GetCompilers(template ProjectTemplate) (C Compilers) {
 	return C
 }
 
-//+kubebuilder:rbac:groups=argoproj.io,resources=appsources,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=argoproj.io,resources=appsources/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=argoproj.io,resources=appsources/finalizers,verbs=update
-
 // Reconcile v1.0: Called upon AppSource creation, handles namespace validation and Project/App creation
 func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	// Check if Application was deleted
-	appSource := &argoprojv1alpha1.AppSource{}
-	err := r.Get(ctx, req.NamespacedName, appSource)
-	if err != nil {
-		//Delete corresponding ArgoCD Application
-		cascade := true
-		_, err := r.ArgoApplicationClient.Delete(ctx, &applicationTypes.ApplicationDeleteRequest{
-			Name:    &req.Name,
-			Cascade: &cascade,
-		})
-		return ctrl.Result{}, err
+	var appSource *argoprojv1alpha1.AppSource
+	if err := r.Get(ctx, req.NamespacedName, appSource); err != nil {
+		//Ignore not-found errors
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if !appSource.ObjectMeta.DeletionTimestamp.IsZero() {
+		//Returns nil if nothing went wrong, non-nil err if encountered problem
+		return ctrl.Result{}, r.ResolveFinalizers(ctx, appSource)
 	}
 
 	// Create the Application if necessary

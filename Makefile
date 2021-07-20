@@ -39,7 +39,7 @@ help: ## Display this help.
 ##@ Development
 
 manifests: kustomize controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=manifests/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) paths="./..." output:crd:artifacts:config=manifests/crd/bases
 	cd manifests/deployment && $(KUSTOMIZE) edit set image controller=${IMG}
 	touch manifests/install.yaml
 	echo "# This is an auto-generated file. DO NOT EDIT" > manifests/install.yaml

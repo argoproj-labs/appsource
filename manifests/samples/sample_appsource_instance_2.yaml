@@ -3,6 +3,8 @@ kind: AppSource
 metadata:
   name: appsource-sample2
   namespace: my-project-us-east-2
+  finalizers:
+  - "argoproj.io/appsource-finalizer-fg-cascade"
 spec:
   # Add fields here
   path: helm-guestbook
