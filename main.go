@@ -33,8 +33,6 @@ import (
 
 	argoprojv1alpha1 "github.com/argoproj-labs/argocd-app-source/pkg/api/v1alpha1"
 	"github.com/argoproj-labs/argocd-app-source/pkg/controllers"
-	argocdClientSet "github.com/argoproj/argo-cd/pkg/apiclient"
-	"github.com/ghodss/yaml"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -88,45 +86,27 @@ func main() {
 	}
 
 	//AppSourceReconciler Initialization
-	//AppSourceReconciler attribute initialization
-	appsourceConfigMap, err := controllers.GetAppSourceConfigmap()
-	if err != nil {
-		setupLog.Error(err, "unable to get configmap")
+
+	reconciler := controllers.AppSourceReconciler{
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		ArgocdNS:    argocdNamespace,
+		ClusterHost: clusterServerName,
+	}
+
+	if err := reconciler.SetupConfigMap(); err != nil {
+		setupLog.Error(err, "failed to create ArgoCD clients using configmap")
 		os.Exit(1)
 	}
 
-	appsourceProjectTemplate := controllers.ProjectTemplate{}
-	err = yaml.Unmarshal([]byte(appsourceConfigMap.Data["project.template"]), &appsourceProjectTemplate)
-	if err != nil {
-		setupLog.Error(err, "unable to unmarshal project template")
-		os.Exit(1)
+	if reconciler.ArgoApplicationClientCloser != nil {
+		defer reconciler.ArgoApplicationClientCloser.Close()
 	}
-	argocdClientOpts, err := controllers.GetClientOpts(*appsourceConfigMap)
-	if err != nil {
-		setupLog.Error(err, "unable to parse client options")
-		os.Exit(1)
+	if reconciler.ArgoProjectClientCloser != nil {
+		defer reconciler.ArgoProjectClientCloser.Close()
 	}
-	argocdClient, err := argocdClientSet.NewClient(argocdClientOpts)
-	if err != nil {
-		setupLog.Error(err, "unable to start ArgoCD Client")
-		os.Exit(1)
-	}
-	closer, argocdApplicationClient := argocdClient.NewApplicationClientOrDie()
-	defer closer.Close()
-	closer, argocdProjectClient := argocdClient.NewProjectClientOrDie()
-	defer closer.Close()
 
-	if err = (&controllers.AppSourceReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-
-		ArgoApplicationClient: argocdApplicationClient,
-		ArgoProjectClient:     argocdProjectClient,
-		Project:               appsourceProjectTemplate,
-		Compilers:             controllers.GetCompilers(appsourceProjectTemplate),
-		ArgocdNS:              argocdNamespace,
-		ClusterHost:           clusterServerName,
-	}).SetupWithManager(mgr); err != nil {
+	if err = (&reconciler).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AppSource")
 		os.Exit(1)
 	}
@@ -144,6 +124,18 @@ func main() {
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
+		if reconciler.ArgoApplicationClientCloser != nil {
+			reconciler.ArgoApplicationClientCloser.Close()
+		}
+		if reconciler.ArgoProjectClientCloser != nil {
+			reconciler.ArgoProjectClientCloser.Close()
+		}
 		os.Exit(1)
+	}
+	if reconciler.ArgoApplicationClientCloser != nil {
+		reconciler.ArgoApplicationClientCloser.Close()
+	}
+	if reconciler.ArgoProjectClientCloser != nil {
+		reconciler.ArgoProjectClientCloser.Close()
 	}
 }
