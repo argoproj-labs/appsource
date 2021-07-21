@@ -15,8 +15,9 @@ var (
 		"application-finalizer.appsource.argoproj.io",
 		"application-finalizer.appsource.argoproj.io/cascade",
 	}
-	cascadeFalse bool = false
-	cascadeTrue  bool = true
+	cascadeFalse bool   = false
+	cascadeTrue  bool   = true
+	background   string = "background"
 )
 
 func (r *AppSourceReconciler) ResolveFinalizers(ctx context.Context, appsource *argoprojv1alpha1.AppSource) (err error) {
@@ -31,8 +32,9 @@ func (r *AppSourceReconciler) ResolveFinalizers(ctx context.Context, appsource *
 					})
 				case "application-finalizer.appsource.argoproj.io/cascade":
 					_, err = r.ArgoApplicationClient.Delete(ctx, &applicationTypes.ApplicationDeleteRequest{
-						Name:    &appsource.Name,
-						Cascade: &cascadeTrue,
+						Name:              &appsource.Name,
+						Cascade:           &cascadeTrue,
+						PropagationPolicy: &background,
 					})
 				default:
 					err = errors.New("invalid finalizer")
