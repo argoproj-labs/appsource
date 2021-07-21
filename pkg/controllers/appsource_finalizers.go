@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	applicationTypes "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	applicationTypes "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	argoprojv1alpha1 "github.com/argoproj-labs/argocd-app-source/pkg/api/v1alpha1"

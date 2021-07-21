@@ -22,8 +22,8 @@ import (
 	"io"
 	"regexp"
 
-	applicationTypes "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	projectTypes "github.com/argoproj/argo-cd/pkg/apiclient/project"
+	applicationTypes "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	projectTypes "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -31,8 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	argocdClientSet "github.com/argoproj/argo-cd/pkg/apiclient"
-	argocd "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	argocdClientSet "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	argocd "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/ghodss/yaml"
 
 	argoprojv1alpha1 "github.com/argoproj-labs/argocd-app-source/pkg/api/v1alpha1"

@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 
-	applicationTypes "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	projectTypes "github.com/argoproj/argo-cd/pkg/apiclient/project"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	applicationTypes "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	projectTypes "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	ctrl "sigs.k8s.io/controller-runtime"

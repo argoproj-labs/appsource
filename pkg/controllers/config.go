@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	argocdClientSet "github.com/argoproj/argo-cd/pkg/apiclient"
+	argocdClientSet "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/kballard/go-shellquote"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
