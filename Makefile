@@ -12,6 +12,12 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+KUBECTL = $(shell which kubectl)
+ARGOCD = $(shell which argocd)
+MINIKUBE = $(shell which minikube)
+KUBENS = $(shell which kubens)
+DOCKER = $(shell which docker)
+
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # This is a requirement for 'setup-envtest.sh' in the test target.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
@@ -69,43 +75,6 @@ docker-build: ## Build docker image with the manager.
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
 
-##@ Proof of Concept
-
-KUBECTL = $(shell which kubectl)
-ARGOCD = $(shell which argocd)
-MINIKUBE = $(shell which minikube)
-KUBENS = $(shell which kubens)
-DOCKER = $(shell which docker)
-
-poc-serv: ## Proof of concept setup.
-	$(MINIKUBE) start
-	$(KUBECTL) create namespace argocd
-	$(KUBECTL) apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-	echo "Wait for server pod to be running, then run kubectl port-forward svc/argocd-server -n argocd 8080:443"
-
-poc-login: ## Login to argocd server
-	$(KUBECTL) -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo
-	$(ARGOCD) login localhost:8080 --insecure
-
-poc-admin: ## Apply admin configmap.
-	$(ARGOCD) proj create my-project
-	$(KUBENS) argocd
-	$(KUBECTL) apply -f manifests/samples/sample_admin_config.yaml
-	echo "Now run make install"
-
-poc-run: poc-reset ## Proof of concept run dev project
-	$(KUBECTL) create namespace my-project-us-west-2
-	$(KUBENS) my-project-us-west-2
-	$(KUBECTL) apply -f manifests/samples/sample_appsource_instance_1.yaml
-
-poc-reset: ## Reset sample Appsource
-	$(KUBECTL) delete appsource appsource-sample1
-	$(kUBECTL) delete namespace my-project-us-west-2
-	$(KUBECTL) apply -f manifests/samples/sample_admin_config.yaml
-
-poc-clean: ## Delete minkube cluster
-	$(MINIKUBE) delete
-
 delete-deployment:
 	-$(KUBENS) argocd
 	$(KUBECTL) delete deployment argocd-appsource-controller
@@ -114,7 +83,7 @@ logs:
 	-$(KUBENS) argocd
 	$(KUBECTL) logs --follow deploy/argocd-appsource-controller
 
-token:
+token-secret:
 	-$(KUBENS) argocd
 	-$(KUBECTL) delete secret argocd-appsource-secret
 	TOKEN=$($(ARGOCD) account generate-token --account appsource)
@@ -139,11 +108,11 @@ delete-samples:
 	-$(KUBECTL) delete appsource appsource-sample1 -n my-project-us-west-2
 	-$(KUBECTL) delete appsource appsource-sample2 -n my-project-us-east-2
 
-clean-samples: delete-samples delete-deployment
+clean-test: delete-samples delete-deployment
 
 image:
-	$(DOCKER) build --progress=plain -t macea/controller:latest .
-	$(DOCKER) push macea/controller:latest
+	$(DOCKER) build --progress=plain -t $(IMG) .
+	$(DOCKER) push $(IMG)
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
