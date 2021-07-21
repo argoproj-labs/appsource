@@ -108,10 +108,6 @@ func (r *AppSourceReconciler) SetupConfigMap() error {
 	return nil
 }
 
-//+kubebuilder:rbac:groups=argoproj.io,resources=appsources,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=argoproj.io,resources=appsources/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=argoproj.io,resources=appsources/finalizers,verbs=update
-
 // Reconcile v1.0: Called upon AppSource creation, handles namespace validation and Project/App creation
 func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
