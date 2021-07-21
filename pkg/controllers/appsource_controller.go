@@ -22,8 +22,8 @@ import (
 	"io"
 	"regexp"
 
-	applicationTypes "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	projectTypes "github.com/argoproj/argo-cd/pkg/apiclient/project"
+	applicationTypes "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	projectTypes "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -31,8 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	argocdClientSet "github.com/argoproj/argo-cd/pkg/apiclient"
-	argocd "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	argocdClientSet "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	argocd "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/ghodss/yaml"
 
 	argoprojv1alpha1 "github.com/argoproj-labs/argocd-app-source/pkg/api/v1alpha1"
@@ -123,6 +123,17 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// If the clients were not set using the configmap wait until it is set
 	if (r.ArgoApplicationClient == nil) || (r.ArgoProjectClient == nil) {
 		return ctrl.Result{Requeue: true}, nil
+	}
+
+	var appSource argoprojv1alpha1.AppSource = argoprojv1alpha1.AppSource{}
+	if err := r.Get(ctx, req.NamespacedName, &appSource); err != nil {
+		//Ignore not-found errors
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if !appSource.ObjectMeta.DeletionTimestamp.IsZero() {
+		//Returns nil if nothing went wrong, non-nil err if encountered problem
+		return ctrl.Result{}, r.ResolveFinalizers(ctx, &appSource)
 	}
 
 	// Create the Application if necessary

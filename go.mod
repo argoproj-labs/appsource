@@ -3,19 +3,11 @@ module github.com/argoproj-labs/argocd-app-source
 go 1.16
 
 require (
-	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
-	github.com/argoproj/argo-cd v1.8.7
-	github.com/argoproj/gitops-engine v0.3.2 // indirect
-	github.com/argoproj/pkg v0.9.1-0.20210512035321-be5ba22dca5b // indirect
+	github.com/argoproj/argo-cd/v2 v2.0.4
 	github.com/ghodss/yaml v1.0.0
-	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
-	github.com/kr/text v0.2.0 // indirect
-	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.13.0
-	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da // indirect
-	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	k8s.io/api v0.20.4
 	k8s.io/apimachinery v0.21.1
 	k8s.io/client-go v11.0.1-0.20190816222228-6d55c1b1f1ca+incompatible

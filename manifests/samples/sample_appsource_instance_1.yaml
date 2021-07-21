@@ -3,6 +3,8 @@ kind: AppSource
 metadata:
   name: appsource-sample1
   namespace: my-project-us-west-2
+  finalizers:
+  - "application-finalizer.appsource.argoproj.io"
 spec:
   # Add fields here
   path: kustomize-guestbook
