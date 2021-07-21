@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	argocdClientSet "github.com/argoproj/argo-cd/pkg/apiclient"
-	argocd "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/kballard/go-shellquote"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,11 +22,6 @@ const (
 var (
 	flags map[string]string
 )
-
-type ProjectTemplate struct {
-	NamePattern string                 `json:"namePattern"`
-	Spec        *argocd.AppProjectSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
-}
 
 // getFlag returns flags[key] or fallback string if key
 // does not exist
