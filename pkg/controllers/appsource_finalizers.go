@@ -7,7 +7,7 @@ import (
 	applicationTypes "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	argoprojv1alpha1 "github.com/argoproj-labs/argocd-app-source/pkg/api/v1alpha1"
+	appsource "github.com/argoproj-labs/argocd-app-source/pkg/api/v1alpha1"
 )
 
 var (
@@ -20,30 +20,51 @@ var (
 	background   string = "background"
 )
 
-func (r *AppSourceReconciler) ResolveFinalizers(ctx context.Context, appsource *argoprojv1alpha1.AppSource) (err error) {
-	for _, appsourceFinalizer := range appsource.GetFinalizers() {
+func (r *AppSourceReconciler) ResolveFinalizers(ctx context.Context, appSource *appsource.AppSource) (err error) {
+	for _, appSourceFinalizer := range appSource.GetFinalizers() {
 		for _, finalizer := range finalizers {
-			if appsourceFinalizer == finalizer {
+			if appSourceFinalizer == finalizer {
+
+				if (appSource.Status.Operation.Type == appsource.ArgoCDAppDeletion) && (appSource.Status.Operation.FinishedAt == nil) {
+					if err = r.RetryOperation(ctx, appSource); err != nil {
+						return err
+					}
+				} else {
+					if err = r.NewOperation(ctx, appSource, appsource.ArgoCDAppDeletion); err != nil {
+						return err
+					}
+				}
+
 				switch finalizer {
 				case "application-finalizer.appsource.argoproj.io":
-					_, err = r.ArgoApplicationClient.Delete(ctx, &applicationTypes.ApplicationDeleteRequest{
-						Name:    &appsource.Name,
+					_, err = r.Clients.Applications.Client.Delete(ctx, &applicationTypes.ApplicationDeleteRequest{
+						Name:    &appSource.Name,
 						Cascade: &cascadeFalse,
 					})
 				case "application-finalizer.appsource.argoproj.io/cascade":
-					_, err = r.ArgoApplicationClient.Delete(ctx, &applicationTypes.ApplicationDeleteRequest{
-						Name:              &appsource.Name,
+					_, err = r.Clients.Applications.Client.Delete(ctx, &applicationTypes.ApplicationDeleteRequest{
+						Name:              &appSource.Name,
 						Cascade:           &cascadeTrue,
 						PropagationPolicy: &background,
 					})
 				default:
 					err = errors.New("invalid finalizer")
 				}
+
 				if err != nil {
+					if err = r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
+						Type:    appsource.ApplicationConditionDeletionError,
+						Message: err.Error(),
+					}); err != nil {
+						return err
+					}
 					return err
 				}
-				controllerutil.RemoveFinalizer(appsource, finalizer)
-				if err = r.Update(ctx, appsource); err != nil {
+				if err = r.FinishOperation(ctx, appSource, nil); err != nil {
+					return err
+				}
+				controllerutil.RemoveFinalizer(appSource, finalizer)
+				if err = r.Update(ctx, appSource); err != nil {
 					return err
 				}
 				return nil
