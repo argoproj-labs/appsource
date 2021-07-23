@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	applicationTypes "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	appsource "github.com/argoproj-labs/argocd-app-source/pkg/api/v1alpha1"
 )
@@ -62,6 +63,7 @@ func (r *AppSourceReconciler) ResolveFinalizers(ctx context.Context, appSource *
 				if err = r.FinishOperation(ctx, appSource, nil); err != nil {
 					return err
 				}
+				controllerutil.RemoveFinalizer(appSource, finalizer)
 				if err = r.Update(ctx, appSource); err != nil {
 					return err
 				}

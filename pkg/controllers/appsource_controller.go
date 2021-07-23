@@ -105,7 +105,11 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	if !appSource.ObjectMeta.DeletionTimestamp.IsZero() {
-		return ctrl.Result{}, r.ResolveFinalizers(ctx, &appSource)
+		if err := r.ResolveFinalizers(ctx, &appSource); err != nil {
+			return ctrl.Result{}, err
+		} else {
+			return ctrl.Result{}, nil
+		}
 	}
 
 	// Create the Application if necessary
