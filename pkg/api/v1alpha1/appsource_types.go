@@ -21,10 +21,69 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type AppSourceConditionType = string
+
+const (
+	// ApplicationConditionDeletionError indicates that controller failed to delete application
+	ApplicationConditionDeletionError AppSourceConditionType = "DeletionError"
+	// ApplicationConditionInvalidSpecError indicates that application source is invalid
+	ApplicationConditionInvalidSpecError AppSourceConditionType = "InvalidSpecError"
+	// ApplicationConditionUnknownError indicates an unknown controller error
+	ApplicationConditionUnknownError AppSourceConditionType = "UnknownError"
+	// ApplicationConditionCreationErro indicates an unknown controller error
+	ApplicationConditionCreationError AppSourceConditionType = "ApplicationCreationError"
+	// ProjectCondtionCreationError indicates the controller was unable to create the ArgoCD Project
+	ProjectConditonCreationError AppSourceConditionType = "ProjectCreationError"
+)
+
+// AppSourceCondition holds the latest information about the AppSource conditions
+type AppSourceCondition struct {
+	// Type is an application condition type
+	Type AppSourceConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
+	// Message contains human-readable message indicating details about condition
+	Message string `json:"message" protobuf:"bytes,2,opt,name=message"`
+	// LastTransitionTime is the time the condition was last observed
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
+}
+
+type OperationType string
+
+const (
+	ArgoCDAppCreation     OperationType = "Creating ArgoCD Application"
+	ArgoCDProjectCreation OperationType = "Creating ArgoCD Project"
+	ArgoCDAppDeletion     OperationType = "Deleting ArgoCD Application"
+)
+
+type OperationPhase string
+
+const (
+	OperationRunning   OperationPhase = "Running"
+	OperationError     OperationPhase = "Error"
+	OperationSucceeded OperationPhase = "Succeeded"
+)
+
+// AppSourceOperation indicates the current ongoing AppSource operation
+type Operation struct {
+	Type  OperationType  `json:"appSourceOperationType,omitempty"`
+	Phase OperationPhase `json:"appSourcePhase,omitempty"`
+	// StartedAt contains time of operation start
+	StartedAt *metav1.Time `json:"startedAt" protobuf:"bytes,6,opt,name=startedAt"`
+	// FinishedAt contains time of operation completion
+	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,7,opt,name=finishedAt"`
+	// RetryCount contains time of operation retries
+	RetryCount int64 `json:"retryCount,omitempty" protobuf:"bytes,8,opt,name=retryCount"`
+}
+
 // AppSourceStatus defines the observed state of AppSource
 type AppSourceStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// ArgoCD Application Status fields
+	ArgoCDApplicationStatus *argocd.ApplicationStatus `json:"argocdApplicationStatus,omitempty"`
+	// OperationState contains information about any ongoing operations, such as a ApplicationCreation
+	Operation Operation `json:"operationState,omitempty"`
+	// Conditions is the condition of the AppSource instance
+	Condition *AppSourceCondition `json:"condition,omitempty"`
+	// ReconciledAt indicates when the appsource instance was last reconciled
+	ReconciledAt metav1.Time `json:"reconciledAt,omitempty"`
 }
 
 //+kubebuilder:object:root=true

@@ -25,17 +25,17 @@ import (
 	applicationTypes "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	projectTypes "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	argocdClientSet "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	argocd "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/ghodss/yaml"
 
-	argoprojv1alpha1 "github.com/argoproj-labs/argocd-app-source/pkg/api/v1alpha1"
+	appsource "github.com/argoproj-labs/argocd-app-source/pkg/api/v1alpha1"
 )
 
 type Compilers struct {
@@ -47,19 +47,30 @@ type ProjectTemplate struct {
 	Spec        *argocd.AppProjectSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
 }
 
+type ApplicationClient struct {
+	Client applicationTypes.ApplicationServiceClient
+	Closer io.Closer
+}
+
+type ProjectClient struct {
+	Client projectTypes.ProjectServiceClient
+	Closer io.Closer
+}
+
+type ArgoCDClients struct {
+	Projects     ProjectClient
+	Applications ApplicationClient
+}
+
 // AppSourceReconciler reconciles a AppSource object
 type AppSourceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	// ArgoCD Project Client
-	ArgoProjectClient projectTypes.ProjectServiceClient
-	// ArgoCD Project Client Closer
-	ArgoProjectClientCloser io.Closer
-	// ArgoCD Application Client
-	ArgoApplicationClient applicationTypes.ApplicationServiceClient
-	// ArgoCD Application Client Closer
-	ArgoApplicationClientCloser io.Closer
+	// AppSource ConfigMap
+	ConfigMap *v1.ConfigMap
+	// ArgoCD Resource Clients
+	Clients ArgoCDClients
 	// ArgoCD Project Template
 	Project ProjectTemplate
 	// Regex Compilers
@@ -70,82 +81,54 @@ type AppSourceReconciler struct {
 	ArgocdNS string
 }
 
-// GetCompilers returns all Regex compilers described by regex strings
-// found in the appsource configuration
-func GetCompilers(template ProjectTemplate) (C Compilers) {
-	if template.NamePattern != "" {
-		C.Pattern = regexp.MustCompile(template.NamePattern)
-	}
-	return C
-}
-
-// SetupConfigMap tries to initialize ArgoCD Clients using the AppSource ConfigMap
-func (r *AppSourceReconciler) SetupConfigMap() error {
-	if (r.ArgoApplicationClient == nil) || (r.ArgoProjectClient == nil) {
-		appsourceConfigMap, err := GetAppSourceConfigmap()
-		if err == nil {
-			appsourceProjectTemplate := ProjectTemplate{}
-			err = yaml.Unmarshal([]byte(appsourceConfigMap.Data["project.template"]), &appsourceProjectTemplate)
-			if err != nil {
-				return err
-			}
-			argocdClientOpts, err := GetClientOpts(*appsourceConfigMap)
-			if err != nil {
-				return err
-			}
-			argocdClient, err := argocdClientSet.NewClient(argocdClientOpts)
-			if err != nil {
-				return err
-			}
-
-			r.Project = appsourceProjectTemplate
-			r.ArgoApplicationClientCloser, r.ArgoApplicationClient = argocdClient.NewApplicationClientOrDie()
-			r.ArgoProjectClientCloser, r.ArgoProjectClient = argocdClient.NewProjectClientOrDie()
-			r.Compilers = GetCompilers(r.Project)
-			return nil
-		}
-	}
-	return nil
-}
-
 // Reconcile v1.0: Called upon AppSource creation, handles namespace validation and Project/App creation
 func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	if err := r.SetupConfigMap(); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// If the clients were not set using the configmap wait until it is set
-	if (r.ArgoApplicationClient == nil) || (r.ArgoProjectClient == nil) {
-		return ctrl.Result{Requeue: true}, nil
-	}
-
-	var appSource argoprojv1alpha1.AppSource = argoprojv1alpha1.AppSource{}
+	// Get the requested AppSource
+	var appSource appsource.AppSource = appsource.AppSource{}
 	if err := r.Get(ctx, req.NamespacedName, &appSource); err != nil {
 		//Ignore not-found errors
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	appSource.Status.ReconciledAt = metav1.Now()
+
+	if ok, err := r.UpsertAppSourceConfig(); err != nil {
+		if ok {
+			return ctrl.Result{Requeue: true}, errors.New("appsource configmap not created yet")
+		}
+		return ctrl.Result{}, err
+	} else {
+		defer r.Clients.Projects.Closer.Close()
+		defer r.Clients.Applications.Closer.Close()
+	}
+
 	if !appSource.ObjectMeta.DeletionTimestamp.IsZero() {
-		//Returns nil if nothing went wrong, non-nil err if encountered problem
 		return ctrl.Result{}, r.ResolveFinalizers(ctx, &appSource)
 	}
 
 	// Create the Application if necessary
 	patternMatchesNamespace := r.Compilers.Pattern.Match([]byte(req.Namespace))
 	if patternMatchesNamespace {
-		err := r.validateProject(ctx, req)
+		err := r.validateProject(ctx, &appSource)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		err = r.validateApplication(ctx, req)
+		err = r.validateApplication(ctx, &appSource)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 	} else {
 		//Name does not match namespace regex pattern.
-		return ctrl.Result{}, errors.New("namespace does not match AppSource project namePattern")
+		err := errors.New("namespace does not match AppSource project namePattern")
+		if ok := r.SetCondition(ctx, &appSource, &appsource.AppSourceCondition{
+			Type:    appsource.ApplicationConditionInvalidSpecError,
+			Message: err.Error(),
+		}); ok != nil {
+			return ctrl.Result{}, ok
+		}
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
@@ -154,6 +137,6 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 // SetupWithManager sets up the controller with the Manager.
 func (r *AppSourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&argoprojv1alpha1.AppSource{}).
+		For(&appsource.AppSource{}).
 		Complete(r)
 }

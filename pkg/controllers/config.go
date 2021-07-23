@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"os"
+	"regexp"
 	"strings"
 
 	argocdClientSet "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"github.com/ghodss/yaml"
 	"github.com/kballard/go-shellquote"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -68,10 +69,24 @@ func loadFlags(clientOpts string) (err error) {
 	return nil
 }
 
+func (r *AppSourceReconciler) UpsertAppSourceConfig() (ok bool, err error) {
+	if err := r.UpsertAppSourceConfigmap(); err != nil {
+		return true, err
+	}
+	if err := r.UpsertProjectTemplate(); err != nil {
+		return false, err
+	}
+	if err := r.UpsertArgoCDClients(); err != nil {
+		return false, err
+	}
+	r.UpsertCompilers()
+	return true, nil
+}
+
 // GetClientOpts loads all the flags found in the AppSource configmap
 // and returns a ArgoCD ClientOpts object with any fields found
-func GetClientOpts(appsourceConfigMap v1.ConfigMap) (*argocdClientSet.ClientOptions, error) {
-	err := loadFlags(appsourceConfigMap.Data["argocd.clientOpts"])
+func (r *AppSourceReconciler) GetClientOpts() (*argocdClientSet.ClientOptions, error) {
+	err := loadFlags(r.ConfigMap.Data["argocd.clientOpts"])
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +94,7 @@ func GetClientOpts(appsourceConfigMap v1.ConfigMap) (*argocdClientSet.ClientOpti
 	token := os.Getenv("ARGOCD_TOKEN")
 
 	return &argocdClientSet.ClientOptions{
-		ServerAddr:        appsourceConfigMap.Data["argocd.address"],
+		ServerAddr:        r.ConfigMap.Data["argocd.address"],
 		AuthToken:         token,
 		PlainText:         getBoolFlag("plaintext"),
 		Insecure:          getBoolFlag("insecure"),
@@ -95,24 +110,61 @@ func GetClientOpts(appsourceConfigMap v1.ConfigMap) (*argocdClientSet.ClientOpti
 }
 
 //GetAppSourceConfigmapOrDie returns the AppSource ConfigMap defined by admins or crashes with error
-func GetAppSourceConfigmap() (appsourceConfigMap *v1.ConfigMap, err error) {
+func (r *AppSourceReconciler) UpsertAppSourceConfigmap() (err error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
 	overrides := clientcmd.ConfigOverrides{}
 	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, &overrides, os.Stdin)
-	//namespace, _, err := clientConfig.Namespace()
 	config, err := clientConfig.ClientConfig()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	//Get AppSource ConfigMap
-	appsourceConfigMap, err = clientset.CoreV1().ConfigMaps("argocd").Get(context.TODO(), appSourceCM, metav1.GetOptions{})
+	r.ConfigMap, err = clientset.CoreV1().ConfigMaps("argocd").Get(context.TODO(), appSourceCM, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return
+
+	return nil
+}
+
+func (r *AppSourceReconciler) UpsertArgoCDClients() error {
+	argocdClientOpts, err := r.GetClientOpts()
+	if err != nil {
+		return err
+	}
+	argocdClient, err := argocdClientSet.NewClient(argocdClientOpts)
+	if err != nil {
+		return err
+	}
+
+	r.Clients.Applications.Closer, r.Clients.Applications.Client = argocdClient.NewApplicationClientOrDie()
+	// if err != nil {
+	// 	return err
+	// }
+	r.Clients.Projects.Closer, r.Clients.Projects.Client = argocdClient.NewProjectClientOrDie()
+	// if err != nil {
+	// 	return err
+	// }
+	return nil
+}
+
+func (r *AppSourceReconciler) UpsertProjectTemplate() error {
+	appsourceProjectTemplate := ProjectTemplate{}
+	err := yaml.Unmarshal([]byte(r.ConfigMap.Data["project.template"]), &appsourceProjectTemplate)
+	if err != nil {
+		return err
+	}
+	r.Project = appsourceProjectTemplate
+	return nil
+}
+
+func (r *AppSourceReconciler) UpsertCompilers() {
+	if r.Project.NamePattern != "" {
+		r.Compilers.Pattern = regexp.MustCompile(r.Project.NamePattern)
+	}
 }

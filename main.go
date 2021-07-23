@@ -94,18 +94,6 @@ func main() {
 		ClusterHost: clusterServerName,
 	}
 
-	if err := reconciler.SetupConfigMap(); err != nil {
-		setupLog.Error(err, "failed to create ArgoCD clients using configmap")
-		os.Exit(1)
-	}
-
-	if reconciler.ArgoApplicationClientCloser != nil {
-		defer reconciler.ArgoApplicationClientCloser.Close()
-	}
-	if reconciler.ArgoProjectClientCloser != nil {
-		defer reconciler.ArgoProjectClientCloser.Close()
-	}
-
 	if err = (&reconciler).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AppSource")
 		os.Exit(1)
@@ -124,18 +112,6 @@ func main() {
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
-		if reconciler.ArgoApplicationClientCloser != nil {
-			reconciler.ArgoApplicationClientCloser.Close()
-		}
-		if reconciler.ArgoProjectClientCloser != nil {
-			reconciler.ArgoProjectClientCloser.Close()
-		}
 		os.Exit(1)
-	}
-	if reconciler.ArgoApplicationClientCloser != nil {
-		reconciler.ArgoApplicationClientCloser.Close()
-	}
-	if reconciler.ArgoProjectClientCloser != nil {
-		reconciler.ArgoProjectClientCloser.Close()
 	}
 }
