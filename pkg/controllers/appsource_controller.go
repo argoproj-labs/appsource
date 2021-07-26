@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"regexp"
 
 	applicationTypes "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	projectTypes "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
@@ -33,19 +32,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	argocd "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
 	appsource "github.com/argoproj-labs/argocd-app-source/pkg/api/v1alpha1"
 )
-
-type Compilers struct {
-	Pattern *regexp.Regexp
-}
-
-type ProjectTemplate struct {
-	NamePattern string                 `json:"namePattern"`
-	Spec        *argocd.AppProjectSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
-}
 
 type ApplicationClient struct {
 	Client applicationTypes.ApplicationServiceClient
@@ -72,9 +60,7 @@ type AppSourceReconciler struct {
 	// ArgoCD Resource Clients
 	Clients ArgoCDClients
 	// ArgoCD Project Template
-	Project ProjectTemplate
-	// Regex Compilers
-	Compilers Compilers
+	ProjectProfiles []map[string]*ProjectTemplate
 	// Server Address
 	ClusterHost string
 	// ArgoCD Namespace
@@ -113,25 +99,22 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// Create the Application if necessary
-	patternMatchesNamespace := r.Compilers.Pattern.Match([]byte(req.Namespace))
-	if patternMatchesNamespace {
-		err := r.validateProject(ctx, &appSource)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		err = r.validateApplication(ctx, &appSource)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-	} else {
-		//Name does not match namespace regex pattern.
-		err := errors.New("namespace does not match AppSource project namePattern")
+	if _, err := r.FindProject(req.Namespace); err != nil {
 		if ok := r.SetCondition(ctx, &appSource, &appsource.AppSourceCondition{
 			Type:    appsource.ApplicationConditionInvalidSpecError,
 			Message: err.Error(),
 		}); ok != nil {
 			return ctrl.Result{}, ok
 		}
+		return ctrl.Result{}, err
+	}
+
+	err := r.validateProject(ctx, &appSource)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	err = r.validateApplication(ctx, &appSource)
+	if err != nil {
 		return ctrl.Result{}, err
 	}
 

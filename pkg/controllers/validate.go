@@ -111,13 +111,24 @@ func (r *AppSourceReconciler) validateProject(ctx context.Context, appSource *ap
 			return ok
 		}
 
+		var proj *ProjectTemplate
+		if proj, err = r.FindProject(projectName); err != nil {
+			if ok := r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
+				Type:    appsource.ProjectConditonCreationError,
+				Message: err.Error(),
+			}); ok != nil {
+				return ok
+			}
+			return err
+		}
+
 		// Create ArgoCD Project
 		if _, err = r.Clients.Projects.Client.Create(ctx, &projectTypes.ProjectCreateRequest{
 			Project: &v1alpha1.AppProject{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: projectName,
 				},
-				Spec: *r.Project.Spec,
+				Spec: *proj.Spec,
 			},
 			Upsert: false,
 		}); err != nil {
@@ -163,14 +174,18 @@ func (r *AppSourceReconciler) validateProjectDestinations(ctx context.Context, p
 //Looks for the left-most match to a named capture group called project (case-sensitive), i.e (?P<project>.*)
 //If the named group is not found, it will grab the first capture group present, i.e (.*)
 func (r *AppSourceReconciler) getProjectName(ctx context.Context, appSource *appsource.AppSource) (result string, err error) {
-	matches := r.Compilers.Pattern.FindStringSubmatch(appSource.Namespace)
+	proj, err := r.FindProject(appSource.Namespace)
+	if err != nil {
+		return "", err
+	}
+	matches := proj.PatternCompiler.FindStringSubmatch(appSource.Namespace)
 	if len(matches) < 2 {
 		// Project name could not be extracted
 		return "", errors.New("no capturing groups found")
 	}
 	matchMap := make(map[string]string)
 	//Map potentially named groups to submatch
-	for i, subMatch := range r.Compilers.Pattern.SubexpNames() {
+	for i, subMatch := range proj.PatternCompiler.SubexpNames() {
 		if (i != 0) && (subMatch != "") {
 			matchMap[subMatch] = matches[i]
 		}

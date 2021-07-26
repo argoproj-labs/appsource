@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	argocdClientSet "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	argocd "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/ghodss/yaml"
 	"github.com/kballard/go-shellquote"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,8 +25,13 @@ var (
 	flags map[string]string
 )
 
-// getFlag returns flags[key] or fallback string if key
-// does not exist
+type ProjectTemplate struct {
+	NamePattern     string                 `json:"namePattern"`
+	Spec            *argocd.AppProjectSpec `json:"spec,omitempty "`
+	PatternCompiler *regexp.Regexp         `json:"omitempty"`
+}
+
+// getFlag returns flags[key] or fallback string if key does not exist
 func getFlag(key, fallback string) string {
 	val, ok := flags[key]
 	if ok {
@@ -69,20 +75,6 @@ func loadFlags(clientOpts string) (err error) {
 	return nil
 }
 
-func (r *AppSourceReconciler) UpsertAppSourceConfig() (ok bool, err error) {
-	if err := r.UpsertAppSourceConfigmap(); err != nil {
-		return true, err
-	}
-	if err := r.UpsertProjectTemplate(); err != nil {
-		return false, err
-	}
-	if err := r.UpsertArgoCDClients(); err != nil {
-		return false, err
-	}
-	r.UpsertCompilers()
-	return true, nil
-}
-
 // GetClientOpts loads all the flags found in the AppSource configmap
 // and returns a ArgoCD ClientOpts object with any fields found
 func (r *AppSourceReconciler) GetClientOpts() (*argocdClientSet.ClientOptions, error) {
@@ -94,23 +86,35 @@ func (r *AppSourceReconciler) GetClientOpts() (*argocdClientSet.ClientOptions, e
 	token := os.Getenv("ARGOCD_TOKEN")
 
 	return &argocdClientSet.ClientOptions{
-		ServerAddr:        r.ConfigMap.Data["argocd.address"],
-		AuthToken:         token,
-		PlainText:         getBoolFlag("plaintext"),
-		Insecure:          getBoolFlag("insecure"),
-		CertFile:          getFlag("server-crt", ""),
-		ClientCertFile:    getFlag("client-crt", ""),
-		ClientCertKeyFile: getFlag("client-crt-key", ""),
-		GRPCWeb:           getBoolFlag("grpc-web"),
-		GRPCWebRootPath:   getFlag("grpc-web-root-path", ""),
-		PortForward:       getBoolFlag("port-forward"),
-		//? How should headers be handled?
+		ServerAddr:           r.ConfigMap.Data["argocd.address"],
+		AuthToken:            token,
+		PlainText:            getBoolFlag("plaintext"),
+		Insecure:             getBoolFlag("insecure"),
+		CertFile:             getFlag("server-crt", ""),
+		ClientCertFile:       getFlag("client-crt", ""),
+		ClientCertKeyFile:    getFlag("client-crt-key", ""),
+		GRPCWeb:              getBoolFlag("grpc-web"),
+		GRPCWebRootPath:      getFlag("grpc-web-root-path", ""),
+		PortForward:          getBoolFlag("port-forward"),
 		PortForwardNamespace: getFlag("port-forward-namespace", ""),
 	}, nil
 }
 
+func (r *AppSourceReconciler) UpsertAppSourceConfig() (ok bool, err error) {
+	if err := r.UpsertConfigmap(); err != nil {
+		return true, err
+	}
+	if err := r.UpsertProjectProfiles(); err != nil {
+		return false, err
+	}
+	if err := r.UpsertArgoCDClients(); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 //GetAppSourceConfigmapOrDie returns the AppSource ConfigMap defined by admins or crashes with error
-func (r *AppSourceReconciler) UpsertAppSourceConfigmap() (err error) {
+func (r *AppSourceReconciler) UpsertConfigmap() (err error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
 	overrides := clientcmd.ConfigOverrides{}
@@ -142,29 +146,45 @@ func (r *AppSourceReconciler) UpsertArgoCDClients() error {
 		return err
 	}
 
-	r.Clients.Applications.Closer, r.Clients.Applications.Client = argocdClient.NewApplicationClientOrDie()
-	// if err != nil {
-	// 	return err
-	// }
-	r.Clients.Projects.Closer, r.Clients.Projects.Client = argocdClient.NewProjectClientOrDie()
-	// if err != nil {
-	// 	return err
-	// }
-	return nil
-}
-
-func (r *AppSourceReconciler) UpsertProjectTemplate() error {
-	appsourceProjectTemplate := ProjectTemplate{}
-	err := yaml.Unmarshal([]byte(r.ConfigMap.Data["project.template"]), &appsourceProjectTemplate)
+	r.Clients.Applications.Closer, r.Clients.Applications.Client, err = argocdClient.NewApplicationClient()
 	if err != nil {
 		return err
 	}
-	r.Project = appsourceProjectTemplate
+	r.Clients.Projects.Closer, r.Clients.Projects.Client, err = argocdClient.NewProjectClient()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *AppSourceReconciler) UpsertProjectProfiles() error {
+	var profiles []map[string]*ProjectTemplate = []map[string]*ProjectTemplate{}
+	err := yaml.Unmarshal([]byte(r.ConfigMap.Data["project.profiles"]), &profiles)
+	if err != nil {
+		return err
+	}
+	r.ProjectProfiles = profiles
+	r.UpsertCompilers()
 	return nil
 }
 
 func (r *AppSourceReconciler) UpsertCompilers() {
-	if r.Project.NamePattern != "" {
-		r.Compilers.Pattern = regexp.MustCompile(r.Project.NamePattern)
+	for i, profile := range r.ProjectProfiles {
+		for name, project := range profile {
+			if project.NamePattern != "" {
+				r.ProjectProfiles[i][name].PatternCompiler = regexp.MustCompile(project.NamePattern)
+			}
+		}
 	}
+}
+
+func (r *AppSourceReconciler) FindProject(projectName string) (*ProjectTemplate, error) {
+	for _, profiles := range r.ProjectProfiles {
+		for _, project := range profiles {
+			if project.PatternCompiler.Match([]byte(projectName)) {
+				return project, nil
+			}
+		}
+	}
+	return nil, errors.New("unable to get project spec from profiles")
 }
