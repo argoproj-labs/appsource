@@ -99,7 +99,8 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// Create the Application if necessary
-	if _, err := r.FindProject(req.Namespace); err != nil {
+	proj, err := r.FindProject(req.Namespace)
+	if err != nil {
 		if ok := r.SetCondition(ctx, &appSource, &appsource.AppSourceCondition{
 			Type:    appsource.ApplicationConditionInvalidSpecError,
 			Message: err.Error(),
@@ -109,11 +110,11 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	err := r.validateProject(ctx, &appSource)
+	err = r.validateProject(ctx, &appSource, proj)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	err = r.validateApplication(ctx, &appSource)
+	err = r.validateApplication(ctx, &appSource, proj)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
