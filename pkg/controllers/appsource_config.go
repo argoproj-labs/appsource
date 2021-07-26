@@ -27,7 +27,7 @@ var (
 
 type ProjectTemplate struct {
 	NamePattern     string                 `json:"namePattern"`
-	Spec            *argocd.AppProjectSpec `json:"spec,omitempty "`
+	Spec            *argocd.AppProjectSpec `json:"spec,omitempty"`
 	PatternCompiler *regexp.Regexp         `json:"omitempty"`
 }
 
