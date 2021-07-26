@@ -14,6 +14,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+
+	appsource "github.com/argoproj-labs/argocd-app-source/pkg/api/v1alpha1"
 )
 
 const (
@@ -27,7 +29,7 @@ var (
 
 type ProjectTemplate struct {
 	NamePattern     string                 `json:"namePattern"`
-	Spec            *argocd.AppProjectSpec `json:"spec,omitempty "`
+	Spec            *argocd.AppProjectSpec `json:"spec,omitempty"`
 	PatternCompiler *regexp.Regexp         `json:"omitempty"`
 }
 
@@ -187,4 +189,25 @@ func (r *AppSourceReconciler) FindProject(projectName string) (*ProjectTemplate,
 		}
 	}
 	return nil, errors.New("unable to get project spec from profiles")
+}
+
+func (proj *ProjectTemplate) GetProjectName(appSource *appsource.AppSource) (result string, err error) {
+	matches := proj.PatternCompiler.FindStringSubmatch(appSource.Namespace)
+	if len(matches) < 2 {
+		// Project name could not be extracted
+		return "", errors.New("no capturing groups found")
+	}
+	matchMap := make(map[string]string)
+	//Map potentially named groups to submatch
+	for i, subMatch := range proj.PatternCompiler.SubexpNames() {
+		if (i != 0) && (subMatch != "") {
+			matchMap[subMatch] = matches[i]
+		}
+	}
+	match, ok := matchMap["project"]
+	if !ok {
+		//First capturing group
+		match = matches[1]
+	}
+	return match, nil
 }
