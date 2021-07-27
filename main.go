@@ -31,16 +31,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	argoprojv1alpha1 "github.com/argoproj-labs/argocd-app-source/pkg/api/v1alpha1"
+	appsource "github.com/argoproj-labs/argocd-app-source/pkg/api/v1alpha1"
 	"github.com/argoproj-labs/argocd-app-source/pkg/controllers"
 	//+kubebuilder:scaffold:imports
-)
-
-const (
-	//In-cluster server address
-	clusterServerName = "https://kubernetes.default.svc"
-	//ArgoCD namespace
-	argocdNamespace = "argocd"
 )
 
 var (
@@ -51,7 +44,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(argoprojv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(appsource.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -90,8 +83,8 @@ func main() {
 	reconciler := controllers.AppSourceReconciler{
 		Client:      mgr.GetClient(),
 		Scheme:      mgr.GetScheme(),
-		ArgocdNS:    argocdNamespace,
-		ClusterHost: clusterServerName,
+		ArgocdNS:    appsource.ArgocdNamespace,
+		ClusterHost: appsource.ClusterServerName,
 	}
 
 	if err = (&reconciler).SetupWithManager(mgr); err != nil {

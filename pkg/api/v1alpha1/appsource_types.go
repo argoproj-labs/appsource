@@ -21,6 +21,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	//In-cluster server address
+	ClusterServerName = "https://kubernetes.default.svc"
+	//ArgoCD namespace
+	ArgocdNamespace = "argocd"
+)
+
 type AppSourceConditionType = string
 
 const (

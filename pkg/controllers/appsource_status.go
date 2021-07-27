@@ -15,12 +15,12 @@ func (r *AppSourceReconciler) NewOperation(ctx context.Context, appSource *appso
 		StartedAt:  &startTime,
 		RetryCount: 0,
 	}
-	return r.Status().Update(ctx, appSource)
+	return r.Status().Update(context.Background(), appSource)
 }
 
 func (r *AppSourceReconciler) RetryOperation(ctx context.Context, appSource *appsource.AppSource) error {
 	appSource.Status.Operation.RetryCount++
-	return r.Status().Update(ctx, appSource)
+	return r.Status().Update(context.Background(), appSource)
 }
 
 func (r *AppSourceReconciler) FinishOperation(ctx context.Context, appSource *appsource.AppSource, condition *appsource.AppSourceCondition) error {
@@ -34,17 +34,17 @@ func (r *AppSourceReconciler) FinishOperation(ctx context.Context, appSource *ap
 	finishTime := metav1.Now()
 	appSource.Status.Operation.FinishedAt = &finishTime
 
-	return r.Status().Update(ctx, appSource)
+	return r.Status().Update(context.Background(), appSource)
 }
 
 func (r *AppSourceReconciler) SetCondition(ctx context.Context, appSource *appsource.AppSource, condition *appsource.AppSourceCondition) error {
 	condition.LastTransitionTime = metav1.Now()
 	condition.LastTransitionTime = metav1.Now()
 	appSource.Status.Condition = condition
-	return r.Status().Update(ctx, appSource)
+	return r.Status().Update(context.Background(), appSource)
 }
 
 func (r *AppSourceReconciler) UpdateArgoCDApplicationStatus(ctx context.Context, appSource *appsource.AppSource, applicationStatus *argocd.ApplicationStatus) error {
 	appSource.Status.ArgoCDApplicationStatus = applicationStatus
-	return r.Status().Update(ctx, appSource)
+	return r.Status().Update(context.Background(), appSource)
 }
