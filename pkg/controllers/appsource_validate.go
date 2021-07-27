@@ -16,7 +16,7 @@ import (
 func (r *AppSourceReconciler) validateApplication(ctx context.Context, appSource *appsource.AppSource, proj *ProjectTemplate) (err error) {
 
 	// Get the corresponding ArgoCD Application
-	application, found := r.Clients.Applications.Client.Get(ctx, &applicationTypes.ApplicationQuery{Name: &appSource.Name})
+	_, found := r.Clients.Applications.Client.Get(ctx, &applicationTypes.ApplicationQuery{Name: &appSource.Name})
 	if found != nil {
 		//Create ArgoCD Application
 
@@ -51,7 +51,7 @@ func (r *AppSourceReconciler) validateApplication(ctx context.Context, appSource
 		}
 
 		// Send request to create Application
-		application, err = r.Clients.Applications.Client.Create(ctx,
+		_, err = r.Clients.Applications.Client.Create(ctx,
 			&applicationTypes.ApplicationCreateRequest{
 				Application: v1alpha1.Application{
 					ObjectMeta: metav1.ObjectMeta{
@@ -84,7 +84,7 @@ func (r *AppSourceReconciler) validateApplication(ctx context.Context, appSource
 	}
 
 	// Update the ArgoCD Application Status with found or created application
-	return r.UpdateArgoCDApplicationStatus(ctx, appSource, &application.Status)
+	return nil
 }
 
 //validateProject Validates AppSource project against ArgoCD, empty project is created if it does not exist

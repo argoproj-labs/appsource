@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	appsource "github.com/argoproj-labs/argocd-app-source/pkg/api/v1alpha1"
-	argocd "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -41,10 +40,5 @@ func (r *AppSourceReconciler) SetCondition(ctx context.Context, appSource *appso
 	condition.LastTransitionTime = metav1.Now()
 	condition.LastTransitionTime = metav1.Now()
 	appSource.Status.Condition = condition
-	return r.Status().Update(context.Background(), appSource)
-}
-
-func (r *AppSourceReconciler) UpdateArgoCDApplicationStatus(ctx context.Context, appSource *appsource.AppSource, applicationStatus *argocd.ApplicationStatus) error {
-	appSource.Status.ArgoCDApplicationStatus = applicationStatus
 	return r.Status().Update(context.Background(), appSource)
 }

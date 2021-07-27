@@ -83,8 +83,6 @@ type Operation struct {
 
 // AppSourceStatus defines the observed state of AppSource
 type AppSourceStatus struct {
-	// ArgoCD Application Status fields
-	ArgoCDApplicationStatus *argocd.ApplicationStatus `json:"argocdApplicationStatus,omitempty"`
 	// OperationState contains information about any ongoing operations, such as a ApplicationCreation
 	Operation Operation `json:"operationState,omitempty"`
 	// Conditions is the condition of the AppSource instance
