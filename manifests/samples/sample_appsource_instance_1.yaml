@@ -6,6 +6,5 @@ metadata:
   finalizers:
   - "application-finalizer.appsource.argoproj.io"
 spec:
-  # Add fields here
   path: kustomize-guestbook
   repoURL: https://github.com/argoproj/argocd-example-apps
