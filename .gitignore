@@ -2,3 +2,4 @@ vendor/
 .vscode/
 bin/
 __debug_bin
+main

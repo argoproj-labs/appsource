@@ -86,15 +86,13 @@ metadata:
 data:
   argocd.address: localhost:8080
   argocd.clientOpts: "--insecure"
-  project.template: |
-    namePattern: (?P<project>.*)-us-(west|east)-(\d.*)
-    spec:
-      # Project description
-      description: Example Project
-
-      # Allow manifests to deploy from any Git repos
-      sourceRepos:
-      - '*'
+  project.profiles: |
+    - default:
+        namePattern: .*
+        spec:
+          description: Default AppSource project
+          sourceRepos:
+            - '*'
 ```
 ### Create Secret containing a API Token for AppSource ArgoCD account
 ```shell
@@ -103,7 +101,7 @@ kubectl create secret generic argocd-appsource-secret --from-literal argocd-toke
 This creates a secret containing a newly generated API token for the `appource` account
 ### Install AppSource CRD and controller
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/aceamarco/argocd-app-source/dev/manifests/install.yaml -n argocd
+kubectl apply -f https://raw.githubusercontent.com/aceamarco/argocd-app-source/master/manifests/install.yaml -n argocd
 ```
 This will create a AppSource custom resource definition, deployment, service account, role, and rolebinding for the AppSource controller.
 ### Optional: Open AppSource controller logs
