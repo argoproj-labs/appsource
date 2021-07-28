@@ -24,14 +24,16 @@ func (r *AppSourceReconciler) RetryOperation(ctx context.Context, appSource *app
 
 func (r *AppSourceReconciler) FinishOperation(ctx context.Context, appSource *appsource.AppSource, condition *appsource.AppSourceCondition) error {
 	if condition != nil {
-		if condition.Message == "" {
-			appSource.Status.Operation.Phase = appsource.OperationSucceeded
-		} else {
+		switch condition.Status {
+		case appsource.ConditionFalse:
 			appSource.Status.Operation.Phase = appsource.OperationError
+
+		case appsource.ConditionTrue:
+			appSource.Status.Operation.Phase = appsource.OperationSucceeded
 		}
-		condition.LastTransitionTime = metav1.Now()
-		appSource.Status.Condition = condition
 	}
+	condition.LastTransitionTime = metav1.Now()
+	appSource.Status.Condition = condition
 	finishTime := metav1.Now()
 	appSource.Status.Operation.FinishedAt = &finishTime
 

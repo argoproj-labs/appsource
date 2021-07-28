@@ -55,12 +55,17 @@ func (r *AppSourceReconciler) ResolveFinalizers(ctx context.Context, appSource *
 					if err = r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
 						Type:    appsource.ApplicationConditionDeletionError,
 						Message: err.Error(),
+						Status:  appsource.ConditionFalse,
 					}); err != nil {
 						return err
 					}
 					return err
 				}
-				if err = r.FinishOperation(ctx, appSource, nil); err != nil {
+				if err = r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
+					Type:    appsource.ApplicationConditionDeletionSuccessful,
+					Message: appsource.ApplicationCreationSuccessfulMsg,
+					Status:  appsource.ConditionTrue,
+				}); err != nil {
 					return err
 				}
 				controllerutil.RemoveFinalizer(appSource, finalizer)

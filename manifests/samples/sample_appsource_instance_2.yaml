@@ -1,11 +1,10 @@
 apiVersion: argoproj.io/v1alpha1
 kind: AppSource
 metadata:
-  name: appsource-sample2
+  name: sample2
   namespace: my-project-us-east-2
   finalizers:
   - "application-finalizer.appsource.argoproj.io/cascade"
 spec:
-  # Add fields here
   path: helm-guestbook
   repoURL: https://github.com/argoproj/argocd-example-apps

@@ -104,6 +104,7 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if ok := r.SetCondition(ctx, &appSource, &appsource.AppSourceCondition{
 			Type:    appsource.ApplicationConditionInvalidSpecError,
 			Message: err.Error(),
+			Status:  appsource.ConditionFalse,
 		}); ok != nil {
 			return ctrl.Result{}, ok
 		}

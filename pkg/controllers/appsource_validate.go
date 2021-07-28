@@ -29,6 +29,7 @@ func (r *AppSourceReconciler) validateApplication(ctx context.Context, appSource
 			if ok := r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
 				Type:    appsource.ApplicationConditionInvalidSpecError,
 				Message: err.Error(),
+				Status:  appsource.ConditionFalse,
 			}); ok != nil {
 				return ok
 			}
@@ -44,6 +45,7 @@ func (r *AppSourceReconciler) validateApplication(ctx context.Context, appSource
 			if ok := r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
 				Type:    appsource.ApplicationConditionCreationError,
 				Message: err.Error(),
+				Status:  appsource.ConditionFalse,
 			}); ok != nil {
 				return ok
 			}
@@ -71,6 +73,7 @@ func (r *AppSourceReconciler) validateApplication(ctx context.Context, appSource
 			if ok := r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
 				Type:    appsource.ApplicationConditionCreationError,
 				Message: err.Error(),
+				Status:  appsource.ConditionFalse,
 			}); ok != nil {
 				return ok
 			}
@@ -78,14 +81,18 @@ func (r *AppSourceReconciler) validateApplication(ctx context.Context, appSource
 		} else {
 			// Application was created successfully
 			if ok := r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
-				Type: appsource.ApplicationCreationSuccessful,
+				Type:    appsource.ApplicationConditionCreationSuccessful,
+				Message: appsource.ApplicationCreationSuccessfulMsg,
+				Status:  appsource.ConditionTrue,
 			}); ok != nil {
 				return ok
 			}
 		}
 	} else {
 		if ok := r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
-			Type: appsource.ApplicationExists,
+			Type:    appsource.ApplicationExists,
+			Message: appsource.ApplicationExistsMsg,
+			Status:  appsource.ConditionTrue,
 		}); ok != nil {
 			return ok
 		}
@@ -104,6 +111,7 @@ func (r *AppSourceReconciler) validateProject(ctx context.Context, appSource *ap
 		if ok := r.SetCondition(ctx, appSource, &appsource.AppSourceCondition{
 			Type:    appsource.ApplicationConditionInvalidSpecError,
 			Message: err.Error(),
+			Status:  appsource.ConditionFalse,
 		}); ok != nil {
 			return ok
 		}
@@ -132,6 +140,7 @@ func (r *AppSourceReconciler) validateProject(ctx context.Context, appSource *ap
 			if ok := r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
 				Type:    appsource.ProjectConditonCreationError,
 				Message: err.Error(),
+				Status:  appsource.ConditionFalse,
 			}); ok != nil {
 				return ok
 			}

@@ -28,29 +28,48 @@ const (
 	ArgocdNamespace = "argocd"
 )
 
+type AppConditionMessage = string
+
+const (
+	ApplicationCreationSuccesfulMsg  AppConditionMessage = "ArgoCD Application was successfully created"
+	ApplicationExistsMsg             AppConditionMessage = "ArgoCD Application exists"
+	ApplicationCreationSuccessfulMsg AppConditionMessage = "ArgoCD Application was succesfully deleted"
+)
+
 type AppSourceConditionType = string
 
 const (
+	// ApplicationConditionCreationErro indicates an unknown controller error
+	ApplicationConditionCreationError AppSourceConditionType = "ApplicationCreationError"
+	// ApplicationConditionCreationSuccessful indicates that the controller was able to create the ArgoCD Application
+	ApplicationConditionCreationSuccessful AppSourceConditionType = "ApplicationCreationSuccesful"
 	// ApplicationConditionDeletionError indicates that controller failed to delete application
-	ApplicationConditionDeletionError AppSourceConditionType = "DeletionError"
+	ApplicationConditionDeletionError AppSourceConditionType = "ApplicationDeletionError"
+	// ApplicationConditionDeletionSuccessful indicates that the controller was able to delete the ArgoCD Application
+	ApplicationConditionDeletionSuccessful AppSourceConditionType = "ApplicationDeletionSuccessful"
 	// ApplicationConditionInvalidSpecError indicates that application source is invalid
 	ApplicationConditionInvalidSpecError AppSourceConditionType = "InvalidSpecError"
 	// ApplicationConditionUnknownError indicates an unknown controller error
 	ApplicationConditionUnknownError AppSourceConditionType = "UnknownError"
-	// ApplicationConditionCreationErro indicates an unknown controller error
-	ApplicationConditionCreationError AppSourceConditionType = "ApplicationCreationError"
 	// ProjectCondtionCreationError indicates the controller was unable to create the ArgoCD Project
 	ProjectConditonCreationError AppSourceConditionType = "ProjectCreationError"
-	// ApplicationCreationSuccessful indicates that the controller was able to create the ArgoCD Application
-	ApplicationCreationSuccessful AppSourceConditionType = "ApplicationCreationSuccesful"
 	// ApplicationExists indicates that the controller found the application referenced by the AppSource Spec
 	ApplicationExists AppSourceConditionType = "ApplicationExists"
+)
+
+type ConditionStatus = string
+
+const (
+	ConditionTrue  = "True"
+	ConditionFalse = "False"
 )
 
 // AppSourceCondition holds the latest information about the AppSource conditions
 type AppSourceCondition struct {
 	// Type is an application condition type
 	Type AppSourceConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
+	// Boolean status describing if the conditon is currently true
+	Status ConditionStatus `json:"status,string"`
 	// Message contains human-readable message indicating details about condition
 	Message string `json:"message" protobuf:"bytes,2,opt,name=message"`
 	// LastTransitionTime is the time the condition was last observed
