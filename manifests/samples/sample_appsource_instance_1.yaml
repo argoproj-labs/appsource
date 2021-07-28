@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: AppSource
 metadata:
-  name: appsource-sample1
+  name: sample1
   namespace: my-project-us-west-2
   finalizers:
   - "application-finalizer.appsource.argoproj.io"
