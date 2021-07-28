@@ -77,9 +77,17 @@ func (r *AppSourceReconciler) validateApplication(ctx context.Context, appSource
 			return err
 		} else {
 			// Application was created successfully
-			if ok := r.FinishOperation(ctx, appSource, nil); ok != nil {
+			if ok := r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
+				Type: appsource.ApplicationCreationSuccessful,
+			}); ok != nil {
 				return ok
 			}
+		}
+	} else {
+		if ok := r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
+			Type: appsource.ApplicationExists,
+		}); ok != nil {
+			return ok
 		}
 	}
 

@@ -41,6 +41,10 @@ const (
 	ApplicationConditionCreationError AppSourceConditionType = "ApplicationCreationError"
 	// ProjectCondtionCreationError indicates the controller was unable to create the ArgoCD Project
 	ProjectConditonCreationError AppSourceConditionType = "ProjectCreationError"
+	// ApplicationCreationSuccessful indicates that the controller was able to create the ArgoCD Application
+	ApplicationCreationSuccessful AppSourceConditionType = "ApplicationCreationSuccesful"
+	// ApplicationExists indicates that the controller found the application referenced by the AppSource Spec
+	ApplicationExists AppSourceConditionType = "ApplicationExists"
 )
 
 // AppSourceCondition holds the latest information about the AppSource conditions
