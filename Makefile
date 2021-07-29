@@ -92,12 +92,12 @@ token-secret:
 deployment: manifests
 	-$(KUBECTL) apply -f manifests/install.yaml
 
-sample-1:
+sample1:
 	-$(KUBECTL) create namespace my-project-us-west-2
 	-$(KUBENS) my-project-us-west-2
 	$(KUBECTL) apply -f manifests/samples/sample_appsource_instance_1.yaml
 
-sample-2:
+sample2:
 	-$(KUBECTL) create namespace my-project-us-east-2
 	-$(KUBENS) my-project-us-east-2
 	$(KUBECTL) apply -f manifests/samples/sample_appsource_instance_2.yaml
