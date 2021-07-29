@@ -104,13 +104,13 @@ sample-2:
 
 samples: sample-1 sample-2
 
-delete-sample-1:
-	-$(KUBECTL) delete appsource appsource-sample1 -n my-project-us-west-2
+delete-sample1:
+	-$(KUBECTL) delete appsource sample1 -n my-project-us-west-2
 
-delete-sample-2:
-	-$(KUBECTL) delete appsource appsource-sample2 -n my-project-us-east-2
+delete-sample2:
+	-$(KUBECTL) delete appsource sample2 -n my-project-us-east-2
 
-delete-samples: delete-sample-1 delete-sample-2
+delete-samples: delete-sample1 delete-sample2
 
 clean-test: delete-samples delete-deployment
 
