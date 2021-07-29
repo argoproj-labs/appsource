@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	applicationTypes "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	appsource "github.com/argoproj-labs/argocd-app-source/pkg/api/v1alpha1"
@@ -25,16 +26,6 @@ func (r *AppSourceReconciler) ResolveFinalizers(ctx context.Context, appSource *
 		for _, finalizer := range finalizers {
 			if appSourceFinalizer == finalizer {
 
-				if (appSource.Status.Operation.Type == appsource.ArgoCDAppDeletion) && (appSource.Status.Operation.FinishedAt == nil) {
-					if err = r.RetryOperation(ctx, appSource); err != nil {
-						return err
-					}
-				} else {
-					if err = r.NewOperation(ctx, appSource, appsource.ArgoCDAppDeletion); err != nil {
-						return err
-					}
-				}
-
 				switch finalizer {
 				case "application-finalizer.appsource.argoproj.io":
 					_, err = r.Clients.Applications.Client.Delete(ctx, &applicationTypes.ApplicationDeleteRequest{
@@ -52,22 +43,20 @@ func (r *AppSourceReconciler) ResolveFinalizers(ctx context.Context, appSource *
 				}
 
 				if err != nil {
-					if err = r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
-						Type:    appsource.ApplicationConditionDeletionError,
-						Message: err.Error(),
-						Status:  appsource.ConditionFalse,
-					}); err != nil {
-						return err
-					}
+					appSource.Status.History = append(appSource.Status.History, &appsource.AppSourceCondition{
+						Type:       appsource.ApplicationDeletionError,
+						Message:    err.Error(),
+						Status:     appsource.ConditionFalse,
+						ObservedAt: metav1.Now(),
+					})
 					return err
 				}
-				if err = r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
-					Type:    appsource.ApplicationConditionDeletionSuccessful,
-					Message: appsource.ApplicationCreationSuccessfulMsg,
-					Status:  appsource.ConditionTrue,
-				}); err != nil {
-					return err
-				}
+				appSource.Status.History = append(appSource.Status.History, &appsource.AppSourceCondition{
+					Type:       appsource.ApplicationDeletionSuccess,
+					Message:    appsource.ApplicationDeletionMsg,
+					Status:     appsource.ConditionTrue,
+					ObservedAt: metav1.Now(),
+				})
 				controllerutil.RemoveFinalizer(appSource, finalizer)
 				if err = r.Update(ctx, appSource); err != nil {
 					return err

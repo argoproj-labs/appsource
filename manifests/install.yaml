@@ -460,7 +460,3 @@ spec:
         imagePullPolicy: Always
         name: manager
       serviceAccountName: argocd-appsource-controller
-      volumes:
-      - configMap:
-          name: argocd-appsource-cm
-        name: argocd-appsource-config-volume

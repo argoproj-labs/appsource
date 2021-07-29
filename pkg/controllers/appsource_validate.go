@@ -18,21 +18,15 @@ func (r *AppSourceReconciler) validateApplication(ctx context.Context, appSource
 	// Get the corresponding ArgoCD Application
 	_, found := r.Clients.Applications.Client.Get(ctx, &applicationTypes.ApplicationQuery{Name: &appSource.Name})
 	if found != nil {
-		//Create ArgoCD Application
-
-		if ok := r.NewOperation(ctx, appSource, appsource.ArgoCDAppCreation); ok != nil {
-			return ok
-		}
 
 		projectName, err := proj.GetProjectName(appSource)
 		if err != nil {
-			if ok := r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
-				Type:    appsource.ApplicationConditionInvalidSpecError,
-				Message: err.Error(),
-				Status:  appsource.ConditionFalse,
-			}); ok != nil {
-				return ok
-			}
+			appSource.Status.History = append(appSource.Status.History, &appsource.AppSourceCondition{
+				Type:       appsource.ApplicationInvalidSpecError,
+				Message:    err.Error(),
+				Status:     appsource.ConditionFalse,
+				ObservedAt: metav1.Now(),
+			})
 			return err
 		}
 
@@ -42,13 +36,12 @@ func (r *AppSourceReconciler) validateApplication(ctx context.Context, appSource
 		}
 		err = r.validateProjectDestinations(ctx, projectName, appSourceDestination)
 		if err != nil {
-			if ok := r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
-				Type:    appsource.ApplicationConditionCreationError,
-				Message: err.Error(),
-				Status:  appsource.ConditionFalse,
-			}); ok != nil {
-				return ok
-			}
+			appSource.Status.History = append(appSource.Status.History, &appsource.AppSourceCondition{
+				Type:       appsource.ApplicationCreationError,
+				Message:    err.Error(),
+				Status:     appsource.ConditionFalse,
+				ObservedAt: metav1.Now(),
+			})
 			return err
 		}
 
@@ -70,35 +63,24 @@ func (r *AppSourceReconciler) validateApplication(ctx context.Context, appSource
 				}})
 		if err != nil {
 			// Application could not be created
-			if ok := r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
-				Type:    appsource.ApplicationConditionCreationError,
-				Message: err.Error(),
-				Status:  appsource.ConditionFalse,
-			}); ok != nil {
-				return ok
-			}
+			appSource.Status.History = append(appSource.Status.History, &appsource.AppSourceCondition{
+				Type:       appsource.ApplicationCreationError,
+				Message:    err.Error(),
+				Status:     appsource.ConditionFalse,
+				ObservedAt: metav1.Now(),
+			})
 			return err
 		} else {
 			// Application was created successfully
-			if ok := r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
-				Type:    appsource.ApplicationConditionCreationSuccessful,
-				Message: appsource.ApplicationCreationSuccessfulMsg,
-				Status:  appsource.ConditionTrue,
-			}); ok != nil {
-				return ok
-			}
-		}
-	} else {
-		if ok := r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
-			Type:    appsource.ApplicationExists,
-			Message: appsource.ApplicationExistsMsg,
-			Status:  appsource.ConditionTrue,
-		}); ok != nil {
-			return ok
+			appSource.Status.History = append(appSource.Status.History, &appsource.AppSourceCondition{
+				Type:       appsource.ApplicationCreationSuccess,
+				Message:    appsource.ApplicationCreationMsg,
+				Status:     appsource.ConditionTrue,
+				ObservedAt: metav1.Now(),
+			})
 		}
 	}
 
-	// Update the ArgoCD Application Status with found or created application
 	return nil
 }
 
@@ -108,24 +90,17 @@ func (r *AppSourceReconciler) validateProject(ctx context.Context, appSource *ap
 	// Get Project name from AppSource namespace
 	projectName, err := proj.GetProjectName(appSource)
 	if err != nil {
-		if ok := r.SetCondition(ctx, appSource, &appsource.AppSourceCondition{
-			Type:    appsource.ApplicationConditionInvalidSpecError,
-			Message: err.Error(),
-			Status:  appsource.ConditionFalse,
-		}); ok != nil {
-			return ok
-		}
+		appSource.Status.History = append(appSource.Status.History, &appsource.AppSourceCondition{
+			Type:       appsource.ApplicationCreationError,
+			Message:    err.Error(),
+			Status:     appsource.ConditionFalse,
+			ObservedAt: metav1.Now(),
+		})
 		return err
 	}
 
 	_, projectFound := r.Clients.Projects.Client.Get(ctx, &projectTypes.ProjectQuery{Name: projectName})
 	if projectFound != nil {
-		// Project not found, create a new ArgoCD Project
-
-		if ok := r.NewOperation(ctx, appSource, appsource.ArgoCDProjectCreation); ok != nil {
-			return ok
-		}
-
 		// Create ArgoCD Project
 		if _, err = r.Clients.Projects.Client.Create(ctx, &projectTypes.ProjectCreateRequest{
 			Project: &v1alpha1.AppProject{
@@ -137,18 +112,12 @@ func (r *AppSourceReconciler) validateProject(ctx context.Context, appSource *ap
 			Upsert: false,
 		}); err != nil {
 			// Project Creation failed
-			if ok := r.FinishOperation(ctx, appSource, &appsource.AppSourceCondition{
-				Type:    appsource.ProjectConditonCreationError,
-				Message: err.Error(),
-				Status:  appsource.ConditionFalse,
-			}); ok != nil {
-				return ok
-			}
-		} else {
-			// Project created successfully
-			if ok := r.FinishOperation(ctx, appSource, nil); ok != nil {
-				return ok
-			}
+			appSource.Status.History = append(appSource.Status.History, &appsource.AppSourceCondition{
+				Type:       appsource.ApplicationCreationError,
+				Message:    err.Error(),
+				Status:     appsource.ConditionFalse,
+				ObservedAt: metav1.Now(),
+			})
 		}
 		return err
 	}
