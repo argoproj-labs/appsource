@@ -81,7 +81,7 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// The function is defered in order to not always queue up new updates to the AppSource
 	defer func(beforeReconcile int) {
 		if len(appSource.Status.History) > beforeReconcile {
-			if ok := r.Status().Update(ctx, &appSource); ok != nil {
+			if ok := r.Status().Update(context.Background(), &appSource); ok != nil {
 				// Change the error being returned
 				err = ok
 			}
