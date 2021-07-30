@@ -21,7 +21,7 @@ func (r *AppSourceReconciler) validateApplication(ctx context.Context, appSource
 
 		projectName, err := proj.GetProjectName(appSource)
 		if err != nil {
-			appSource.Status.History = append(appSource.Status.History, &appsource.AppSourceCondition{
+			appSource.UpsertConditions(appsource.AppSourceCondition{
 				Type:       appsource.ApplicationInvalidSpecError,
 				Message:    err.Error(),
 				Status:     appsource.ConditionFalse,
@@ -36,7 +36,7 @@ func (r *AppSourceReconciler) validateApplication(ctx context.Context, appSource
 		}
 		err = r.validateProjectDestinations(ctx, projectName, appSourceDestination)
 		if err != nil {
-			appSource.Status.History = append(appSource.Status.History, &appsource.AppSourceCondition{
+			appSource.UpsertConditions(appsource.AppSourceCondition{
 				Type:       appsource.ApplicationCreationError,
 				Message:    err.Error(),
 				Status:     appsource.ConditionFalse,
@@ -63,7 +63,7 @@ func (r *AppSourceReconciler) validateApplication(ctx context.Context, appSource
 				}})
 		if err != nil {
 			// Application could not be created
-			appSource.Status.History = append(appSource.Status.History, &appsource.AppSourceCondition{
+			appSource.UpsertConditions(appsource.AppSourceCondition{
 				Type:       appsource.ApplicationCreationError,
 				Message:    err.Error(),
 				Status:     appsource.ConditionFalse,
@@ -72,7 +72,7 @@ func (r *AppSourceReconciler) validateApplication(ctx context.Context, appSource
 			return err
 		} else {
 			// Application was created successfully
-			appSource.Status.History = append(appSource.Status.History, &appsource.AppSourceCondition{
+			appSource.UpsertConditions(appsource.AppSourceCondition{
 				Type:       appsource.ApplicationCreationSuccess,
 				Message:    appsource.ApplicationCreationMsg,
 				Status:     appsource.ConditionTrue,
@@ -90,7 +90,7 @@ func (r *AppSourceReconciler) validateProject(ctx context.Context, appSource *ap
 	// Get Project name from AppSource namespace
 	projectName, err := proj.GetProjectName(appSource)
 	if err != nil {
-		appSource.Status.History = append(appSource.Status.History, &appsource.AppSourceCondition{
+		appSource.UpsertConditions(appsource.AppSourceCondition{
 			Type:       appsource.ApplicationCreationError,
 			Message:    err.Error(),
 			Status:     appsource.ConditionFalse,
@@ -112,7 +112,7 @@ func (r *AppSourceReconciler) validateProject(ctx context.Context, appSource *ap
 			Upsert: false,
 		}); err != nil {
 			// Project Creation failed
-			appSource.Status.History = append(appSource.Status.History, &appsource.AppSourceCondition{
+			appSource.UpsertConditions(appsource.AppSourceCondition{
 				Type:       appsource.ApplicationCreationError,
 				Message:    err.Error(),
 				Status:     appsource.ConditionFalse,

@@ -43,7 +43,7 @@ func (r *AppSourceReconciler) ResolveFinalizers(ctx context.Context, appSource *
 				}
 
 				if err != nil {
-					appSource.Status.History = append(appSource.Status.History, &appsource.AppSourceCondition{
+					appSource.UpsertConditions(appsource.AppSourceCondition{
 						Type:       appsource.ApplicationDeletionError,
 						Message:    err.Error(),
 						Status:     appsource.ConditionFalse,
@@ -51,12 +51,6 @@ func (r *AppSourceReconciler) ResolveFinalizers(ctx context.Context, appSource *
 					})
 					return err
 				}
-				appSource.Status.History = append(appSource.Status.History, &appsource.AppSourceCondition{
-					Type:       appsource.ApplicationDeletionSuccess,
-					Message:    appsource.ApplicationDeletionMsg,
-					Status:     appsource.ConditionTrue,
-					ObservedAt: metav1.Now(),
-				})
 				controllerutil.RemoveFinalizer(appSource, finalizer)
 				if err = r.Update(ctx, appSource); err != nil {
 					return err

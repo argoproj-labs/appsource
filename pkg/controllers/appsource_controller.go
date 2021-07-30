@@ -77,16 +77,17 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		//Ignore not-found errors
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
+
 	// This function checks if AppSource Status has changed, if so it updates the AppSource
 	// The function is defered in order to not always queue up new updates to the AppSource
-	defer func(beforeReconcile int) {
-		if len(appSource.Status.History) > beforeReconcile {
+	defer func(conditionsBeforeReconcile []appsource.AppSourceCondition) {
+		if !appsource.IsEqual(appSource.Status.Conditions, conditionsBeforeReconcile) {
 			if ok := r.Status().Update(context.Background(), &appSource); ok != nil {
 				// Change the error being returned
 				err = ok
 			}
 		}
-	}(len(appSource.Status.History))
+	}(appSource.Status.Conditions)
 
 	if ok, err := r.UpsertAppSourceConfig(); err != nil {
 		if ok {
@@ -109,7 +110,7 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// Create the Application if necessary
 	proj, err := r.FindProject(req.Namespace)
 	if err != nil {
-		appSource.Status.History = append(appSource.Status.History, &appsource.AppSourceCondition{
+		appSource.UpsertConditions(appsource.AppSourceCondition{
 			Type:       appsource.ApplicationInvalidSpecError,
 			Message:    err.Error(),
 			Status:     appsource.ConditionFalse,
