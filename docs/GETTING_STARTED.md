@@ -39,7 +39,7 @@ data:
 #### Update appsource password
 Use _admin password_ when prompted for the `current password`
 ```shell
-argocd account update-password --username appsource
+argocd account update-password --account appsource
 ```
 #### Disable admin account
 Per ArgoCD Guidlines, you should disable the `admin` account after creating a ArgoCD user account.
