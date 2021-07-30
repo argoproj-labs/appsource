@@ -96,7 +96,8 @@ data:
 ```
 ### Create Secret containing a API Token for AppSource ArgoCD account
 ```shell
-kubectl create secret generic argocd-appsource-secret --from-literal argocd-token=$(argocd account generate-token --account appsource)
+export ARGOCD_TOKEN=$(argocd account generate-token --account appsource)
+kubectl create secret generic argocd-appsource-secret --from-literal argocd-token=$ARGOCD_TOKEN
 ```
 This creates a secret containing a newly generated API token for the `appource` account
 ### Install AppSource CRD and controller
