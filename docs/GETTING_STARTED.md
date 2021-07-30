@@ -21,7 +21,7 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 
 #### Log in to admin account
 ```shell
-argocd login localhost:8080 --account admin --insecure
+argocd login localhost:8080 --username admin --insecure
 ```
 Use the password from the previous section.
 
@@ -39,7 +39,7 @@ data:
 #### Update appsource password
 Use _admin password_ when prompted for the `current password`
 ```shell
-argocd account update-password --account appsource
+argocd account update-password --username appsource
 ```
 #### Disable admin account
 Per ArgoCD Guidlines, you should disable the `admin` account after creating a ArgoCD user account.
@@ -55,7 +55,7 @@ data:
 ### Log in with appsource account
 Use the admin or updated (optional step above) password to log in.
 ```shell
-argocd login localhost:8080 --insecure --account appsource
+argocd login localhost:8080 --insecure --username appsource
 ```
 ### Give appsource account necessary API permissions
 Open the `argocd-rbac-cm` config map
