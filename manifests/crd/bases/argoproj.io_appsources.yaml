@@ -262,53 +262,36 @@ spec:
           status:
             description: AppSourceStatus defines the observed state of AppSource
             properties:
-              condition:
-                description: Conditions is the condition of the AppSource instance
-                properties:
-                  lastTransitionTime:
-                    description: LastTransitionTime is the time the condition was
-                      last observed
-                    format: date-time
-                    type: string
-                  message:
-                    description: Message contains human-readable message indicating
-                      details about condition
-                    type: string
-                  type:
-                    description: Type is an application condition type
-                    type: string
-                required:
-                - message
-                - type
-                type: object
-              operationState:
-                description: OperationState contains information about any ongoing
-                  operations, such as a ApplicationCreation
-                properties:
-                  appSourceOperationType:
-                    type: string
-                  appSourcePhase:
-                    type: string
-                  finishedAt:
-                    description: FinishedAt contains time of operation completion
-                    format: date-time
-                    type: string
-                  retryCount:
-                    description: RetryCount contains time of operation retries
-                    format: int64
-                    type: integer
-                  startedAt:
-                    description: StartedAt contains time of operation start
-                    format: date-time
-                    type: string
-                required:
-                - startedAt
-                type: object
-              reconciledAt:
-                description: ReconciledAt indicates when the appsource instance was
-                  last reconciled
-                format: date-time
-                type: string
+              conditions:
+                description: Conditions is a list of observed AppSource conditions
+                  TODO Rename to Conditions TODO Iterate through conditions and upsert
+                  the condition
+                items:
+                  description: AppSourceCondition holds the latest information about
+                    the AppSource conditions
+                  properties:
+                    message:
+                      description: Message contains human-readable message indicating
+                        details about condition
+                      type: string
+                    observedAt:
+                      description: LastTransitionTime is the time the condition was
+                        last observed
+                      format: date-time
+                      type: string
+                    status:
+                      description: Boolean status describing if the conditon is currently
+                        true
+                      type: string
+                    type:
+                      description: Type is an application condition type
+                      type: string
+                  required:
+                  - message
+                  - status
+                  - type
+                  type: object
+                type: array
             type: object
         type: object
     served: true
