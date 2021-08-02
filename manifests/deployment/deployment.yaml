@@ -17,10 +17,10 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-appsource-controller
     spec:
-      volumes:
-        - name: argocd-appsource-config-volume
-          configMap:
-            name: argocd-appsource-cm
+      # volumes:
+      #   - name: argocd-appsource-config-volume
+      #     configMap:
+      #       name: argocd-appsource-cm
       containers:
       - command:
         - /manager

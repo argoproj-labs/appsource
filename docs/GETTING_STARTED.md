@@ -21,7 +21,7 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 
 #### Log in to admin account
 ```shell
-argocd login localhost:8080 --account admin --insecure
+argocd login localhost:8080 --username admin --insecure
 ```
 Use the password from the previous section.
 
@@ -55,7 +55,7 @@ data:
 ### Log in with appsource account
 Use the admin or updated (optional step above) password to log in.
 ```shell
-argocd login localhost:8080 --insecure --account appsource
+argocd login localhost:8080 --insecure --username appsource
 ```
 ### Give appsource account necessary API permissions
 Open the `argocd-rbac-cm` config map
@@ -96,7 +96,8 @@ data:
 ```
 ### Create Secret containing a API Token for AppSource ArgoCD account
 ```shell
-kubectl create secret generic argocd-appsource-secret --from-literal argocd-token=$(argocd account generate-token --account appsource)
+export ARGOCD_TOKEN=$(argocd account generate-token --account appsource)
+kubectl -n argocd create secret generic argocd-appsource-secret --from-literal argocd-token=$ARGOCD_TOKEN
 ```
 This creates a secret containing a newly generated API token for the `appource` account
 ### Install AppSource CRD and controller

@@ -68,7 +68,7 @@ type AppSourceReconciler struct {
 }
 
 // Reconcile v1.0: Called upon AppSource creation, handles namespace validation and Project/App creation
-func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
 	_ = log.FromContext(ctx)
 
 	// Get the requested AppSource
@@ -78,7 +78,16 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	appSource.Status.ReconciledAt = metav1.Now()
+	// This function checks if AppSource Status has changed, if so it updates the AppSource
+	// The function is defered in order to not always queue up new updates to the AppSource
+	defer func(conditionsBeforeReconcile []appsource.AppSourceCondition) {
+		if !appsource.IsEqual(appSource.Status.Conditions, conditionsBeforeReconcile) {
+			if ok := r.Status().Update(context.Background(), &appSource); ok != nil {
+				// Change the error being returned
+				err = ok
+			}
+		}
+	}(appSource.Status.Conditions)
 
 	if ok, err := r.UpsertAppSourceConfig(); err != nil {
 		if ok {
@@ -101,12 +110,12 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// Create the Application if necessary
 	proj, err := r.FindProject(req.Namespace)
 	if err != nil {
-		if ok := r.SetCondition(ctx, &appSource, &appsource.AppSourceCondition{
-			Type:    appsource.ApplicationConditionInvalidSpecError,
-			Message: err.Error(),
-		}); ok != nil {
-			return ctrl.Result{}, ok
-		}
+		appSource.UpsertConditions(appsource.AppSourceCondition{
+			Type:       appsource.ApplicationInvalidSpecError,
+			Message:    err.Error(),
+			Status:     appsource.ConditionFalse,
+			ObservedAt: metav1.Now(),
+		})
 		return ctrl.Result{}, err
 	}
 

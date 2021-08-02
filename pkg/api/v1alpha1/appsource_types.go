@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	argocd "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"reflect"
 )
 
 const (
@@ -28,71 +29,56 @@ const (
 	ArgocdNamespace = "argocd"
 )
 
+type AppConditionMessage = string
+
+const (
+	ApplicationExistsMsg   AppConditionMessage = "ArgoCD Application exists"
+	ApplicationDeletionMsg AppConditionMessage = "ArgoCD Application was succesfully deleted"
+	ApplicationCreationMsg AppConditionMessage = "ArgoCD Application was successfully created"
+)
+
 type AppSourceConditionType = string
 
 const (
-	// ApplicationConditionDeletionError indicates that controller failed to delete application
-	ApplicationConditionDeletionError AppSourceConditionType = "DeletionError"
-	// ApplicationConditionInvalidSpecError indicates that application source is invalid
-	ApplicationConditionInvalidSpecError AppSourceConditionType = "InvalidSpecError"
-	// ApplicationConditionUnknownError indicates an unknown controller error
-	ApplicationConditionUnknownError AppSourceConditionType = "UnknownError"
-	// ApplicationConditionCreationErro indicates an unknown controller error
-	ApplicationConditionCreationError AppSourceConditionType = "ApplicationCreationError"
-	// ProjectCondtionCreationError indicates the controller was unable to create the ArgoCD Project
-	ProjectConditonCreationError AppSourceConditionType = "ProjectCreationError"
-	// ApplicationCreationSuccessful indicates that the controller was able to create the ArgoCD Application
-	ApplicationCreationSuccessful AppSourceConditionType = "ApplicationCreationSuccesful"
-	// ApplicationExists indicates that the controller found the application referenced by the AppSource Spec
-	ApplicationExists AppSourceConditionType = "ApplicationExists"
+	// ApplicationCreationError indicates an unknown controller error
+	ApplicationCreationError AppSourceConditionType = "ApplicationCreationError"
+	// ApplicationCreationSuccess indicates that the controller was able to create the ArgoCD Application
+	ApplicationCreationSuccess AppSourceConditionType = "ApplicationCreationSuccess"
+	// ApplicationDeletionError indicates that controller failed to delete application
+	ApplicationDeletionError AppSourceConditionType = "ApplicationDeletionError"
+	// // ApplicationDeletionSuccess indicates that the controller was able to delete the ArgoCD Application
+	// ApplicationDeletionSuccess AppSourceConditionType = "ApplicationDeletionSuccess"
+	// ApplicationInvalidSpecError indicates that application source is invalid
+	ApplicationInvalidSpecError AppSourceConditionType = "InvalidSpecError"
+	// ApplicationUnknownError indicates an unknown controller error
+	ApplicationUnknownError AppSourceConditionType = "UnknownError"
+)
+
+type ConditionStatus = string
+
+const (
+	ConditionTrue  = "True"
+	ConditionFalse = "False"
 )
 
 // AppSourceCondition holds the latest information about the AppSource conditions
 type AppSourceCondition struct {
 	// Type is an application condition type
 	Type AppSourceConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
+	// Boolean status describing if the conditon is currently true
+	Status ConditionStatus `json:"status,string"`
 	// Message contains human-readable message indicating details about condition
 	Message string `json:"message" protobuf:"bytes,2,opt,name=message"`
 	// LastTransitionTime is the time the condition was last observed
-	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
-}
-
-type OperationType string
-
-const (
-	ArgoCDAppCreation     OperationType = "Creating ArgoCD Application"
-	ArgoCDProjectCreation OperationType = "Creating ArgoCD Project"
-	ArgoCDAppDeletion     OperationType = "Deleting ArgoCD Application"
-)
-
-type OperationPhase string
-
-const (
-	OperationRunning   OperationPhase = "Running"
-	OperationError     OperationPhase = "Error"
-	OperationSucceeded OperationPhase = "Succeeded"
-)
-
-// AppSourceOperation indicates the current ongoing AppSource operation
-type Operation struct {
-	Type  OperationType  `json:"appSourceOperationType,omitempty"`
-	Phase OperationPhase `json:"appSourcePhase,omitempty"`
-	// StartedAt contains time of operation start
-	StartedAt *metav1.Time `json:"startedAt" protobuf:"bytes,6,opt,name=startedAt"`
-	// FinishedAt contains time of operation completion
-	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,7,opt,name=finishedAt"`
-	// RetryCount contains time of operation retries
-	RetryCount int64 `json:"retryCount,omitempty" protobuf:"bytes,8,opt,name=retryCount"`
+	ObservedAt metav1.Time `json:"observedAt,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
 }
 
 // AppSourceStatus defines the observed state of AppSource
 type AppSourceStatus struct {
-	// OperationState contains information about any ongoing operations, such as a ApplicationCreation
-	Operation Operation `json:"operationState,omitempty"`
-	// Conditions is the condition of the AppSource instance
-	Condition *AppSourceCondition `json:"condition,omitempty"`
-	// ReconciledAt indicates when the appsource instance was last reconciled
-	ReconciledAt metav1.Time `json:"reconciledAt,omitempty"`
+	// Conditions is a list of observed AppSource conditions
+	//TODO Rename to Conditions
+	//TODO Iterate through conditions and upsert the condition
+	Conditions []AppSourceCondition `json:"conditions,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -114,6 +100,48 @@ type AppSourceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []AppSource `json:"items"`
+}
+
+func ConditionIsEqual(a, b AppSourceCondition) bool {
+	aValue := reflect.ValueOf(a)
+	aValues := make([]interface{}, aValue.NumField())
+	bValue := reflect.ValueOf(b)
+	bValues := make([]interface{}, bValue.NumField())
+
+	if aValue.NumField() != bValue.NumField() {
+		return false
+	}
+	for i := 0; i < bValue.NumField(); i++ {
+		if aValues[i] != bValues[i] {
+			return false
+		}
+	}
+	return true
+
+}
+
+func IsEqual(a, b []AppSourceCondition) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, _ := range a {
+		if !ConditionIsEqual(a[i], b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func (a *AppSource) UpsertConditions(newCondition AppSourceCondition) {
+	for i, _ := range a.Status.Conditions {
+		if a.Status.Conditions[i].Type == newCondition.Type {
+			// Update condition
+			a.Status.Conditions[i] = newCondition
+			return
+		}
+	}
+	// Condition not found, insert it
+	a.Status.Conditions = append(a.Status.Conditions, newCondition)
 }
 
 func init() {
