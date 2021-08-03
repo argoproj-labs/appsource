@@ -111,10 +111,10 @@ func (r *AppSourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	proj, err := r.FindProject(req.Namespace)
 	if err != nil {
 		appSource.UpsertConditions(appsource.AppSourceCondition{
-			Type:       appsource.ApplicationInvalidSpecError,
-			Message:    err.Error(),
-			Status:     appsource.ConditionFalse,
-			ObservedAt: metav1.Now(),
+			Type:          appsource.ApplicationInvalidSpecError,
+			Message:       err.Error(),
+			Status:        appsource.ConditionFalse,
+			LastProbeTime: metav1.Now(),
 		})
 		return ctrl.Result{}, err
 	}

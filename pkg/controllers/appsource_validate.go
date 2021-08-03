@@ -22,10 +22,10 @@ func (r *AppSourceReconciler) validateApplication(ctx context.Context, appSource
 		projectName, err := proj.GetProjectName(appSource)
 		if err != nil {
 			appSource.UpsertConditions(appsource.AppSourceCondition{
-				Type:       appsource.ApplicationInvalidSpecError,
-				Message:    err.Error(),
-				Status:     appsource.ConditionFalse,
-				ObservedAt: metav1.Now(),
+				Type:          appsource.ApplicationInvalidSpecError,
+				Message:       err.Error(),
+				Status:        appsource.ConditionFalse,
+				LastProbeTime: metav1.Now(),
 			})
 			return err
 		}
@@ -37,10 +37,10 @@ func (r *AppSourceReconciler) validateApplication(ctx context.Context, appSource
 		err = r.validateProjectDestinations(ctx, projectName, appSourceDestination)
 		if err != nil {
 			appSource.UpsertConditions(appsource.AppSourceCondition{
-				Type:       appsource.ApplicationCreationError,
-				Message:    err.Error(),
-				Status:     appsource.ConditionFalse,
-				ObservedAt: metav1.Now(),
+				Type:          appsource.ApplicationCreationError,
+				Message:       err.Error(),
+				Status:        appsource.ConditionFalse,
+				LastProbeTime: metav1.Now(),
 			})
 			return err
 		}
@@ -64,19 +64,19 @@ func (r *AppSourceReconciler) validateApplication(ctx context.Context, appSource
 		if err != nil {
 			// Application could not be created
 			appSource.UpsertConditions(appsource.AppSourceCondition{
-				Type:       appsource.ApplicationCreationError,
-				Message:    err.Error(),
-				Status:     appsource.ConditionFalse,
-				ObservedAt: metav1.Now(),
+				Type:          appsource.ApplicationCreationError,
+				Message:       err.Error(),
+				Status:        appsource.ConditionFalse,
+				LastProbeTime: metav1.Now(),
 			})
 			return err
 		} else {
 			// Application was created successfully
 			appSource.UpsertConditions(appsource.AppSourceCondition{
-				Type:       appsource.ApplicationCreationSuccess,
-				Message:    appsource.ApplicationCreationMsg,
-				Status:     appsource.ConditionTrue,
-				ObservedAt: metav1.Now(),
+				Type:          appsource.ApplicationCreationSuccess,
+				Message:       appsource.ApplicationCreationMsg,
+				Status:        appsource.ConditionTrue,
+				LastProbeTime: metav1.Now(),
 			})
 		}
 	}
@@ -91,10 +91,10 @@ func (r *AppSourceReconciler) validateProject(ctx context.Context, appSource *ap
 	projectName, err := proj.GetProjectName(appSource)
 	if err != nil {
 		appSource.UpsertConditions(appsource.AppSourceCondition{
-			Type:       appsource.ApplicationCreationError,
-			Message:    err.Error(),
-			Status:     appsource.ConditionFalse,
-			ObservedAt: metav1.Now(),
+			Type:          appsource.ApplicationCreationError,
+			Message:       err.Error(),
+			Status:        appsource.ConditionFalse,
+			LastProbeTime: metav1.Now(),
 		})
 		return err
 	}
@@ -113,10 +113,10 @@ func (r *AppSourceReconciler) validateProject(ctx context.Context, appSource *ap
 		}); err != nil {
 			// Project Creation failed
 			appSource.UpsertConditions(appsource.AppSourceCondition{
-				Type:       appsource.ApplicationCreationError,
-				Message:    err.Error(),
-				Status:     appsource.ConditionFalse,
-				ObservedAt: metav1.Now(),
+				Type:          appsource.ApplicationCreationError,
+				Message:       err.Error(),
+				Status:        appsource.ConditionFalse,
+				LastProbeTime: metav1.Now(),
 			})
 		}
 		return err
