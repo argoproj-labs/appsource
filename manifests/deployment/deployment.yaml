@@ -24,7 +24,7 @@ spec:
       containers:
       - command:
         - /manager
-        image: macea/controller:latest
+        image: quay.io/argoprojlabs/argocd-appsource:latest
         imagePullPolicy: Always
         name: manager
         env:
