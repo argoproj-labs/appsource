@@ -5,7 +5,7 @@ on:
     branches:
       - 'master'
       - 'release-*'
-    path:
+    paths:
       - 'pkg/controllers/*'
   pull_request:
     branches:
