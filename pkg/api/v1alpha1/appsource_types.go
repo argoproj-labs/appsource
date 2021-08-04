@@ -67,6 +67,7 @@ const (
 )
 
 // AppSourceCondition holds the latest information about the AppSource conditions
+//TODO Test this new interface with kubectl wait
 type AppSourceCondition struct {
 	// Last time we probed the condition.
 	LastProbeTime metav1.Time `json:"lastProbeTime"`
