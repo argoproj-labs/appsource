@@ -102,7 +102,7 @@ kubectl -n argocd create secret generic argocd-appsource-secret --from-literal a
 This creates a secret containing a newly generated API token for the `appource` account
 ### Install AppSource CRD and controller
 ```shell
-kubectl -n argocd apply -f https://raw.githubusercontent.com/arogproj-labs/appsource/master/manifests/install.yaml 
+kubectl -n argocd apply -f https://raw.githubusercontent.com/argoproj-labs/appsource/master/manifests/install.yaml 
 ```
 This will create a AppSource custom resource definition, deployment, service account, role, and rolebinding for the AppSource controller.
 ### Optional: Open AppSource controller logs
