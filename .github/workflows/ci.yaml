@@ -1,0 +1,44 @@
+name: Push to quay.io
+
+on:
+  push:
+    branches:
+      - 'master'
+      - 'release-*'
+    path:
+      - 'pkg/controllers/*'
+  pull_request:
+    branches:
+      - 'master'
+  
+jobs:
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - 
+        name: Checkout repo
+        uses: actions/checkout@master
+      - 
+        name: Build image tag
+        run: echo "IMAGE_TAG=$(cat ./VERSION)-${GITHUB_SHA::8}" >> $GITHUB_ENV
+      -
+        name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+      -
+        name: Build and Push
+        uses: docker/build-push-action@v2
+        with:
+          platforms: linux/amd64, linux/arm64, linux/arm
+          push: true
+          tags: |
+            quay.io/argoprojlabs/argocd-appsource:latest
+            quay.io/argoprojlabs/argocd-appsource:${{ env.IMAGE_TAG }}
+          file: ./Dockerfile
+          build-args: |
+            IMAGE_TAG=${{ env.IMAGE_TAGE }}
+      
