@@ -1,5 +1,48 @@
 # AppSource CRD
 A decentralized manager for ArgoCD — allow sub-admins to create and manage their own applications on ArgoCD.
+
+## Example Spec
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppSource
+metadata:
+  name: sample1
+  # RBAC restricted namespace
+  namespace: my-project-us-west-2
+  finalizers:
+    # Deletes ArgoCD Application when you delete the AppSource
+  - "application-finalizer.appsource.argoproj.io"
+spec:
+  # Path to ArgoCD Application
+  path: kustomize-guestbook
+  # Source Github repo for ArgoCD Application
+  repoURL: https://github.com/argoproj/argocd-example-apps
+```
+
+## Example ConfigMap
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-appsource-cm
+  namespace: argocd
+data:
+  # ArgoCD Server address
+  argocd.address: localhost:8080
+  # ArgoCD API Client Options
+  argocd.clientOpts: "--insecure"
+  # Project Profiles
+  project.profiles: |
+    - default:
+        namePattern: .*
+        spec:
+          description: Default AppSource project
+          sourceRepos:
+            - '*'
+```
+
 ## Installation
 - Create the AppSource Controller and CRD by using a single install manifest
 ```shell
