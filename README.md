@@ -1,9 +1,41 @@
 # AppSource CRD
 A decentralized manager for ArgoCD — allow sub-admins to create and manage their own applications on ArgoCD.
 ## Installation
-- Apply the AppSource CRD manifests `https://raw.githubusercontent.com/aceamarco/argocd-app-source/master/manifests/install.yaml`
-- Create a secret containing your ArgoCD token named `argocd-appsource-secret`
+- Create the AppSource Controller and CRD by using a single install manifest
+```shell
+kubectl -n argocd apply -f https://raw.githubusercontent.com/argoproj-labs/appsource/master/manifests/install.yaml 
+```
+### Set Up
 - Configure the AppSource Controller using the [`argocd-appsource-cm` configmap](./manifests/samples/sample_admin_config.yaml)
+- Create an ArgoCD account with API capabilities
+```shell
+kubectl edit configmap argocd-cm -n argocd
+```
+```yaml
+# Add this to the end of the file
+data:
+  accounts.appsource: apiKey, login
+```
+- Give your AppSource account the necessary RBAC permissions to manage ArgoCD resources
+```shell
+kubectl edit configmap argocd-rbac-cm -n argocd
+```
+```yaml
+# Add this to the end of the file
+data:
+  policy.csv: |
+    p, role:appsource, applications, *, */*, allow
+    p, role:appsource, projects, *, *, allow
+    p, role:appsource, repositories, *, *, allow
+    p, role:appsource, cluster, *, *, allow
+    p, role:appsource, clusters, *, *, allow
+    g, appsource, role:appsource
+```
+- Create a secret containing your ArgoCD token named `argocd-appsource-secret`
+```shell
+export ARGOCD_TOKEN=$(argocd account generate-token --account appsource)
+kubectl -n argocd create secret generic argocd-appsource-secret --from-literal argocd-token=$ARGOCD_TOKEN
+```
 - For a more detailed instructions, see the [Getting Started Guide](docs/GETTING_STARTED.md)
 ## Summary
 - Traditionally, ArgoCD applications are managed by a single entity, this formally called the multi-tenant model of ArgoCD. However, some users would like to provide their organizaitons ArgoCD as a self-serviced tool. 
