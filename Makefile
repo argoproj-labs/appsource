@@ -74,10 +74,6 @@ quay-build: ## Build docker image with the manager.
 quay-push: ## Push docker image with the manager.
 	docker push ${IMG}
 
-delete-deployment:
-	-$(KUBENS) argocd
-	$(KUBECTL) delete deployment argocd-appsource-controller
-
 logs:
 	-$(KUBENS) argocd
 	$(KUBECTL) logs --follow deploy/argocd-appsource-controller
@@ -108,6 +104,28 @@ delete-sample1:
 
 delete-sample2:
 	-$(KUBECTL) delete appsource sample2 -n my-project-us-east-2
+
+delete-crd:
+	-$(KUBENS) argocd
+	-$(KUBECTL) delete CustomResourceDefinition appsources.argoproj.io
+
+delete-serviceAccount:
+	-$(KUBENS) argocd
+	-$(KUBECTL) delete ServiceAccount argocd-appsource-controller
+
+delete-clusterRole:
+	-$(KUBENS) argocd
+	-$(KUBECTL) delete ClusterRole argocd-appsource-controller
+
+delete-roleBinding:
+	-$(KUBENS) argocd
+	-$(KUBECTL) delete ClusterRoleBinding argocd-appsource-controller 
+
+delete-deployment:
+	-$(KUBENS) argocd
+	$(KUBECTL) delete deployment argocd-appsource-controller
+
+undo-install: delete-crd delete-serviceAccount delete-clusterRole delete-roleBinding delete-deployment
 
 delete-samples: delete-sample1 delete-sample2
 
