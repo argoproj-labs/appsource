@@ -5,8 +5,9 @@ A decentralized manager for ArgoCD — allow sub-admins to create and manage the
 ```shell
 kubectl -n argocd apply -f https://raw.githubusercontent.com/argoproj-labs/appsource/master/manifests/install.yaml 
 ```
+![Installing the AppSource CRD and relevant resources](./docs/assets/gif/installation.gif)
 ### Set Up
-- Configure the AppSource Controller using the [`argocd-appsource-cm` configmap](./manifests/samples/sample_admin_config.yaml)
+- Configure your AppSource controller using a configmap named [`argocd-appsource-cm`](./manifests/samples/sample_admin_config.yaml)
 - Create an ArgoCD account with API capabilities
 ```shell
 kubectl edit configmap argocd-cm -n argocd
@@ -36,10 +37,29 @@ data:
 export ARGOCD_TOKEN=$(argocd account generate-token --account appsource)
 kubectl -n argocd create secret generic argocd-appsource-secret --from-literal argocd-token=$ARGOCD_TOKEN
 ```
-- For a more detailed instructions, see the [Getting Started Guide](docs/GETTING_STARTED.md)
-## Summary
-- Traditionally, ArgoCD applications are managed by a single entity, this formally called the multi-tenant model of ArgoCD. However, some users would like to provide their organizaitons ArgoCD as a self-serviced tool. 
-- This alternative model can be called the "self-service model", where sub-admins are allowed to create and manage their own collection of applications without the need for Admin approval.
+- For more detailed instructions, see the [Getting Started Guide](docs/GETTING_STARTED.md)
+
+# Usage
+## Creating an ArgoCD Application
+
+![Creating an ArgoCD Application using the AppSource custom resource](docs/assets/gif/creation.gif)
+
+## Using the AppSource Status Resource
+
+Users with access to the `argocd` namespace can see applications created by the controller through the ArgoCD UI
+
+![ArgoCD UI](docs/assets/png/argocd-ui.png)
+
+However, users without access to the `argocd` instance can use the AppSource Status field to see if their ArgoCD application was successfully created
+
+![AppSource Status Subresource](docs/assets/gif/status.gif)
+
+## Deleting your AppSource instance
+
+If you included a AppSource finalizer in your AppSource manifest, deleting the AppSource resource will also delete your ArgoCD application.
+
+![Deletion](docs/assets/gif/deletion.gif)
+
 ## Motivation
 - Organizations would like to be able to provide development teams access to ArgoCD without needing to maintain/approve actions made to the Dev team's collection of applications.
 
