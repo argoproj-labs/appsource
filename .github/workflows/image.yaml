@@ -1,4 +1,4 @@
-name: Push to quay.io
+name: Build Image on Push to Master
 
 on:
   push:

@@ -1,0 +1,8 @@
+data:
+  policy.csv: |
+    p, role:appsource, applications, *, */*, allow
+    p, role:appsource, projects, *, *, allow
+    p, role:appsource, repositories, *, *, allow
+    p, role:appsource, cluster, *, *, allow
+    p, role:appsource, clusters, *, *, allow
+    g, appsource, role:appsource

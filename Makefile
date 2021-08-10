@@ -129,9 +129,13 @@ undo-install: delete-crd delete-serviceAccount delete-clusterRole delete-roleBin
 
 delete-samples: delete-sample1 delete-sample2
 
-clean-test: delete-samples delete-deployment
+clean-demo: delete-samples delete-deployment
 
-image: quay-build quay-push
+image: quay-build quay-push 
+
+e2e-test : generate fmt vet manifests
+	./hack/setup-appsource-testenv.sh
+	go test -race -count=1 -coverprofile=coverage.out `go list ./... | grep -v 'test/e2e'`
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
