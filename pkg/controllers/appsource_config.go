@@ -130,7 +130,7 @@ func (r *AppSourceReconciler) UpsertConfigmap() (err error) {
 		return err
 	}
 	//Get AppSource ConfigMap
-	r.ConfigMap, err = clientset.CoreV1().ConfigMaps("argocd").Get(context.TODO(), appSourceCM, metav1.GetOptions{})
+	r.ConfigMap, err = clientset.CoreV1().ConfigMaps("argocd-appsource").Get(context.TODO(), appSourceCM, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

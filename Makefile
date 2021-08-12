@@ -48,7 +48,7 @@ manifests: kustomize controller-gen ## Generate WebhookConfiguration, ClusterRol
 	cd manifests/deployment && $(KUSTOMIZE) edit set image controller=${IMG}
 	touch manifests/install.yaml
 	echo "# This is an auto-generated file. DO NOT EDIT" > manifests/install.yaml
-	${KUSTOMIZE} build manifests/namespace-install/. >> manifests/install.yaml
+	${KUSTOMIZE} build manifests/install/. >> manifests/install.yaml
 	chmod 644 manifests/install.yaml
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
