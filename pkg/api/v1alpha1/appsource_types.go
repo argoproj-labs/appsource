@@ -46,8 +46,6 @@ const (
 	ApplicationCreationSuccess AppSourceConditionType = "ApplicationCreationSuccess"
 	// ApplicationDeletionError indicates that controller failed to delete application
 	ApplicationDeletionError AppSourceConditionType = "ApplicationDeletionError"
-	// // ApplicationDeletionSuccess indicates that the controller was able to delete the ArgoCD Application
-	// ApplicationDeletionSuccess AppSourceConditionType = "ApplicationDeletionSuccess"
 	// ApplicationInvalidSpecError indicates that application source is invalid
 	ApplicationInvalidSpecError AppSourceConditionType = "InvalidSpecError"
 	// ApplicationUnknownError indicates an unknown controller error
@@ -102,6 +100,7 @@ type AppSourceList struct {
 	Items           []AppSource `json:"items"`
 }
 
+//Checks if two AppSource conditions are equal in value
 func ConditionIsEqual(a, b AppSourceCondition) bool {
 	aValue := reflect.ValueOf(a)
 	aValues := make([]interface{}, aValue.NumField())
@@ -120,6 +119,8 @@ func ConditionIsEqual(a, b AppSourceCondition) bool {
 
 }
 
+//Checks if two AppSource condition lists are equal in value
+//Related: ConditionEqual()
 func IsEqual(a, b []AppSourceCondition) bool {
 	if len(a) != len(b) {
 		return false
@@ -132,6 +133,7 @@ func IsEqual(a, b []AppSourceCondition) bool {
 	return true
 }
 
+//Updates condition if the condition already exisits, else inserts it to the list of conditions
 func (a *AppSource) UpsertConditions(newCondition AppSourceCondition) {
 	for i, _ := range a.Status.Conditions {
 		if a.Status.Conditions[i].Type == newCondition.Type {

@@ -12,6 +12,7 @@ import (
 )
 
 var (
+	//AppSource finalizer strings
 	finalizers = []string{
 		"application-finalizer.appsource.argoproj.io",
 		"application-finalizer.appsource.argoproj.io/cascade",
@@ -21,6 +22,9 @@ var (
 	background   string = "background"
 )
 
+//ResolveFinalizers loops through all the predefined finalizer strings above and sees if any of them are included
+//in the appsource finalizers array. This function is called when the appsource objects deletion timestamp is non-zero.
+//In a typical case it will send a delete request to the ArgoCD API if any of our finalizers are included.
 func (r *AppSourceReconciler) ResolveFinalizers(ctx context.Context, appSource *appsource.AppSource) (err error) {
 	for _, appSourceFinalizer := range appSource.GetFinalizers() {
 		for _, finalizer := range finalizers {
