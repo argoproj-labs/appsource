@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	applicationTypes "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	projectTypes "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
@@ -50,7 +51,11 @@ func (r *AppSourceReconciler) validateApplication(ctx context.Context, appSource
 			&applicationTypes.ApplicationCreateRequest{
 				Application: v1alpha1.Application{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      appSource.Name,
+						/** TODO: This line needs an extra argument for the cluster name!
+						 * With this, all applications created on the ArgoCD side will be user specific
+						 * I'm trying to figure out how to get the cluster name though.
+						 */
+						Name:      fmt.Sprintf("%s.%s.%s", appSource.Namespace, appSource.Name),
 						Namespace: r.ArgocdNS},
 					Spec: v1alpha1.ApplicationSpec{
 						Source: v1alpha1.ApplicationSource{
