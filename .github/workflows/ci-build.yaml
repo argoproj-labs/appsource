@@ -150,16 +150,16 @@ jobs:
     name: Run end-to-end tests
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout latest ArgoCD Code
-        uses: actions/checkout@v2
-        with:
-          repository: argoproj/argo-cd
-          # Pin a specific commit to prevent Argo CD regressions from impacting us:
-          # This version is verified to match a version consistent with the kustomize install yaml,
-          # by 'hack/verify-argo-cd-versions.sh'.
-          # BEGIN-ARGO-CD-VERSION
-          ref: v2.0.0
-          # END-ARGO-CD-VERSION
+      # - name: Checkout latest ArgoCD Code
+      #   uses: actions/checkout@v2
+      #   with:
+      #     repository: argoproj/argo-cd
+      #     # Pin a specific commit to prevent Argo CD regressions from impacting us:
+      #     # This version is verified to match a version consistent with the kustomize install yaml,
+      #     # by 'hack/verify-argo-cd-versions.sh'.
+      #     # BEGIN-ARGO-CD-VERSION
+      #     ref: v2.0.0
+      #     # END-ARGO-CD-VERSION
       - name: Set-up Golang
         uses: actions/setup-go@v2
         with:
