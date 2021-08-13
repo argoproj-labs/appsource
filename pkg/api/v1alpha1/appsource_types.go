@@ -46,8 +46,6 @@ const (
 	ApplicationCreationSuccess AppSourceConditionType = "ApplicationCreationSuccess"
 	// ApplicationDeletionError indicates that controller failed to delete application
 	ApplicationDeletionError AppSourceConditionType = "ApplicationDeletionError"
-	// // ApplicationDeletionSuccess indicates that the controller was able to delete the ArgoCD Application
-	// ApplicationDeletionSuccess AppSourceConditionType = "ApplicationDeletionSuccess"
 	// ApplicationInvalidSpecError indicates that application source is invalid
 	ApplicationInvalidSpecError AppSourceConditionType = "InvalidSpecError"
 	// ApplicationUnknownError indicates an unknown controller error
