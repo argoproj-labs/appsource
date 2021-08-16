@@ -37,47 +37,55 @@ const (
 	ApplicationCreationMsg AppConditionMessage = "ArgoCD Application was successfully created"
 )
 
-type AppSourceConditionType = string
+type AppSourceReason = string
 
 const (
 	// ApplicationCreationError indicates an unknown controller error
-	ApplicationCreationError AppSourceConditionType = "ApplicationCreationError"
+	ApplicationCreationError AppSourceReason = "ApplicationCreationError"
 	// ApplicationCreationSuccess indicates that the controller was able to create the ArgoCD Application
-	ApplicationCreationSuccess AppSourceConditionType = "ApplicationCreationSuccess"
+	ApplicationCreationSuccess AppSourceReason = "ApplicationCreationSuccess"
 	// ApplicationDeletionError indicates that controller failed to delete application
-	ApplicationDeletionError AppSourceConditionType = "ApplicationDeletionError"
-	// // ApplicationDeletionSuccess indicates that the controller was able to delete the ArgoCD Application
-	// ApplicationDeletionSuccess AppSourceConditionType = "ApplicationDeletionSuccess"
+	ApplicationDeletionError AppSourceReason = "ApplicationDeletionError"
 	// ApplicationInvalidSpecError indicates that application source is invalid
-	ApplicationInvalidSpecError AppSourceConditionType = "InvalidSpecError"
+	ApplicationInvalidSpecError AppSourceReason = "InvalidSpecError"
 	// ApplicationUnknownError indicates an unknown controller error
-	ApplicationUnknownError AppSourceConditionType = "UnknownError"
+	ApplicationUnknownError AppSourceReason = "UnknownError"
 )
 
 type ConditionStatus = string
 
 const (
-	ConditionTrue  = "True"
-	ConditionFalse = "False"
+	ConditionTrue    ConditionStatus = "True"
+	ConditionFalse   ConditionStatus = "False"
+	ConditionUnknown ConditionStatus = "Unknown"
+)
+
+type AppSourceConditionType = string
+
+const (
+	Ready AppSourceConditionType = "Steady"
 )
 
 // AppSourceCondition holds the latest information about the AppSource conditions
+//TODO Test this new interface with kubectl wait
 type AppSourceCondition struct {
+	// Last time we probed the condition.
+	LastProbeTime metav1.Time `json:"lastProbeTime"`
+	// Last time the condition transitioned from one status to another.
+	LastTansitionTime metav1.Time `json:"lastTransitionTime"`
+	// Human-readable message indicating details about last transition.
+	Message AppConditionMessage `json:"message"`
+	// Unique, one-word, CamelCase reason for the condition's last transition.
+	Reason AppSourceReason `json:"reason"`
+	// Status is the status of the condition. Can be True, False, Unknown.
+	Status ConditionStatus `json:"status"`
 	// Type is an application condition type
-	Type AppSourceConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
-	// Boolean status describing if the conditon is currently true
-	Status ConditionStatus `json:"status,string"`
-	// Message contains human-readable message indicating details about condition
-	Message string `json:"message" protobuf:"bytes,2,opt,name=message"`
-	// LastTransitionTime is the time the condition was last observed
-	ObservedAt metav1.Time `json:"observedAt,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
+	Type AppSourceConditionType `json:"type"`
 }
 
 // AppSourceStatus defines the observed state of AppSource
 type AppSourceStatus struct {
 	// Conditions is a list of observed AppSource conditions
-	//TODO Rename to Conditions
-	//TODO Iterate through conditions and upsert the condition
 	Conditions []AppSourceCondition `json:"conditions,omitempty"`
 }
 
@@ -141,6 +149,7 @@ func (a *AppSource) UpsertConditions(newCondition AppSourceCondition) {
 		}
 	}
 	// Condition not found, insert it
+	newCondition.LastTansitionTime = metav1.Now()
 	a.Status.Conditions = append(a.Status.Conditions, newCondition)
 }
 

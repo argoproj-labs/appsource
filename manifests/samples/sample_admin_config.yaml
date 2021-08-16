@@ -4,7 +4,7 @@ metadata:
   name: argocd-appsource-cm
   namespace: argocd
 data:
-  argocd.address: 172.17.0.6:8080
+  argocd.address: 172.17.0.4:8080
   argocd.clientOpts: "--insecure"
   project.profiles: |
     - my-project:

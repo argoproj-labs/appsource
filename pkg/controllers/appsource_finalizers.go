@@ -44,10 +44,10 @@ func (r *AppSourceReconciler) ResolveFinalizers(ctx context.Context, appSource *
 
 				if err != nil {
 					appSource.UpsertConditions(appsource.AppSourceCondition{
-						Type:       appsource.ApplicationDeletionError,
-						Message:    err.Error(),
-						Status:     appsource.ConditionFalse,
-						ObservedAt: metav1.Now(),
+						Type:          appsource.ApplicationDeletionError,
+						Message:       err.Error(),
+						Status:        appsource.ConditionFalse,
+						LastProbeTime: metav1.Now(),
 					})
 					return err
 				}
