@@ -117,7 +117,7 @@ The install manifest creates a deployment for the latest AppSource controller im
 
 To view the state of the deployment, run:
 ```shell
-kubectl describe deploymeny argocd-appsource-controller -n argocd
+kubectl describe deployment argocd-appsource-controller -n argocd
 ```
 
 To view the state of the replicaset, run:
